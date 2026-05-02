@@ -448,7 +448,7 @@ const BiddingGallery = () => {
                     name: product.product_name,
                     myBid: userBidAmount,
                     currentBid: currentHighestBid,
-                    image: 'https://via.placeholder.com/400x300?text=Loading...',
+                    image: '/assets/images/hero_school_supplies.png',
                     product: product
                 };
 
@@ -460,11 +460,11 @@ const BiddingGallery = () => {
                                 bidData.image = url;
                             })
                             .catch(() => {
-                                bidData.image = 'https://via.placeholder.com/400x300?text=No+Image';
+                                bidData.image = '/assets/images/hero_school_supplies.png';
                             })
                     );
                 } else {
-                    bidData.image = 'https://via.placeholder.com/400x300?text=No+Image';
+                    bidData.image = '/assets/images/hero_school_supplies.png';
                 }
 
                 if (isActive) {
@@ -790,7 +790,7 @@ const BiddingGallery = () => {
                                                 alt={bid.name}
                                                 className="w-16 h-16 rounded-xl object-cover"
                                                 onError={(e) => {
-                                                    e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                                                    e.target.src = '/assets/images/hero_school_supplies.png';
                                                 }}
                                             />
                                             <div className="flex-1 min-w-0">
@@ -834,7 +834,7 @@ const BiddingGallery = () => {
                                                 alt={bid.name}
                                                 className="w-16 h-16 rounded-xl object-cover grayscale"
                                                 onError={(e) => {
-                                                    e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                                                    e.target.src = '/assets/images/hero_school_supplies.png';
                                                 }}
                                             />
                                             <div className="flex-1 min-w-0">
@@ -879,7 +879,7 @@ const BiddingGallery = () => {
                                                 className="w-9 h-9 rounded-full border-2 border-white/20 object-cover shadow-sm group-hover:border-white/40 transition-colors"
                                                 alt={b.name}
                                                 onError={(e) => {
-                                                    e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                                                    e.target.src = '/assets/images/hero_school_supplies.png';
                                                 }}
                                             />
                                         ))}
