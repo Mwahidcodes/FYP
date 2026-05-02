@@ -678,9 +678,9 @@ function AdminPanel() {
       const to = from + ITEMS_PER_PAGE - 1;
 
       // Try loading with specific columns first
-      let query = supabase
-        .from("verification_requests")
-        .select("id, user_id, user_name, user_email, status, created_at, affidavit_name, affidavit_url, reason, cnic_front_url, cnic_back_url", { count: 'exact' });
+     let query = supabase
+  .from("verification_requests")
+  .select("*", { count: "exact" });
 
       if (verificationStatusFilter !== 'all') {
         query = query.eq('status', verificationStatusFilter);
