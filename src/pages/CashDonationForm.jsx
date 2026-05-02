@@ -1,127 +1,265 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { DollarSign, ArrowLeft, Upload, FileText, CheckCircle, AlertCircle, CreditCard } from "lucide-react";
+import {
+  ArrowLeft,
+  DollarSign,
+  Upload,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  ArrowRight,
+} from "lucide-react";
 import AuthenticatedNavbar from "../components/AuthenticatedNavbar";
 import { supabase } from "../supabaseClient";
 import CustomDropdown from "../components/CustomDropdown";
 
 function CashDonationForm() {
   const navigate = useNavigate();
+
   const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [screenshot, setScreenshot] = useState(null);
-  const [screenshotName, setScreenshotName] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("stripe");
+
   const [formData, setFormData] = useState({
     amount: "",
     category: "",
-    otherCategory: "",
     message: "",
   });
 
+  const [screenshot, setScreenshot] = useState(null);
+  const [screenshotName, setScreenshotName] = useState("");
+  const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [hasPending, setHasPending] = useState(false);
+  const mainContentRef = useRef(null);
+
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [step, feedback]);
+
+  useEffect(() => {
+    checkExistingPending();
+  }, []);
+
+  const checkExistingPending = async () => {
+    try {
+      const user = localStorage.getItem("currentUser");
+      if (!user) return;
+
+      const userData = JSON.parse(user);
+
+      const { data } = await supabase
+        .from("cash_donations")
+        .select("id")
+        .eq("user_id", userData.id)
+        .eq("status", "pending")
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setHasPending(true);
+        setFeedback({
+          type: "warning",
+          message: "Your donation is already in pending",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const categories = [
-    "Medical Treatment",
-    "Education",
-    "Food & Groceries",
-    "House Rent",
+    "Medical Assistance",
+    "Education Fees",
     "Utility Bills",
-    "Emergency Relief",
+    "Marriage",
+    "Debt Relief",
     "Other",
   ];
 
-  const processSteps = [
-    { title: "Amount & Category", desc: "Specify how much and where to help" },
-    { title: "Bank Transfer", desc: "Transfer funds to our verified account" },
-    { title: "Upload Proof", desc: "Share the transaction screenshot" },
-    { title: "Verification", desc: "Wait for admin to verify and approve" },
-  ];
-
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleNextStep = async (e) => {
     e.preventDefault();
-    setFeedback(null);
 
-    if (formData.category === "Other" && !formData.otherCategory.trim()) {
-      setFeedback({ type: "error", message: "Please specify the category before continuing." });
+    if (hasPending) {
+      setFeedback({ type: "warning", message: "Your donation is already in pending" });
       return;
     }
 
-    if (step === 1) {
-      if (Number(formData.amount) > 50000) {
-        setFeedback({ type: "error", message: "Maximum donation limit is 50,000." });
-        return;
-      }
+    if (!formData.amount || !formData.category) {
+      setFeedback({
+        type: "error",
+        message: "Please fill in all required fields.",
+      });
+      return;
+    }
+
+    if (Number(formData.amount) <= 0) {
+      setFeedback({
+        type: "error",
+        message: "Please enter a valid donation amount.",
+      });
+      return;
+    }
+
+    if (paymentMethod === "stripe" && Number(formData.amount) < 150) {
+      setFeedback({
+        type: "error",
+        message: "Stripe requires a minimum donation of PKR 150 (approx $0.50).",
+      });
+      return;
+    }
+
+    if (Number(formData.amount) > 50000) {
+      setFeedback({
+        type: "error",
+        message: "Donation limit is 50000.",
+      });
+      return;
+    }
+
+    setFeedback(null);
+
+    if (paymentMethod === "bank_transfer") {
       setStep(2);
       return;
     }
 
-    if (loading) return;
-    setLoading(true);
+    await handleStripeRedirect();
+  };
 
-    const user = localStorage.getItem("currentUser");
-    if (!user) {
+  const handleStripeRedirect = async () => {
+    setLoading(true);
+    setFeedback(null);
+
+    try {
+      const user = localStorage.getItem("currentUser");
+      if (!user) throw new Error("Please login first.");
+      const userData = JSON.parse(user);
+
+      // Create a pending donation record first
+      const { data, error } = await supabase
+        .from("cash_donations")
+        .insert([
+          {
+            user_id: userData.id,
+            user_name: userData.name,
+            user_email: userData.email,
+            amount: parseFloat(formData.amount),
+            category: formData.category,
+            message: formData.message,
+            screenshot_url: null,
+            status: "waiting_payment",
+            payment_gateway: "stripe"
+          },
+        ])
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      setFeedback({ type: "success", message: "Redirecting to Stripe secure checkout..." });
+
+      const API_URL = "http://127.0.0.1:5001";
+      const response = await fetch(`${API_URL}/api/create-stripe-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: formData.amount,
+          donationId: data.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Could not initialize Stripe session.");
+      }
+
+      // Redirect to Official Stripe Checkout
+      setTimeout(() => {
+        window.location.href = result.url;
+      }, 1500);
+    } catch (error) {
+      setFeedback({ type: "error", message: error.message });
       setLoading(false);
-      setFeedback({ type: "error", message: "Please login first to make a donation." });
-      navigate("/login");
+    }
+  };
+
+
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (hasPending) {
+      setFeedback({ type: "warning", message: "Your donation is already in pending" });
       return;
     }
 
-    const userData = JSON.parse(user);
-    const finalCategory =
-      formData.category === "Other"
-        ? formData.otherCategory
-        : formData.category;
+    if (loading) return;
+
+    setLoading(true);
+    setFeedback(null);
 
     try {
-      const { data: pending } = await supabase
-        .from("cash_donations")
-        .select("status")
-        .eq("user_id", userData.id)
-        .eq("status", "pending");
+      const user = localStorage.getItem("currentUser");
+      if (!user) throw new Error("Please login first.");
 
-      if (pending && pending.length > 0) {
-        setFeedback({ type: "warning", message: "Cash Donation already in pending" });
+      const userData = JSON.parse(user);
+
+      let screenshotUrl = null;
+
+      if (!screenshot) {
+        setFeedback({ type: "error", message: "Please upload payment proof." });
         setLoading(false);
         return;
       }
 
-      const fileExt = screenshot.name.split(".").pop();
-      const fileName = `${userData.id}_${Date.now()}.${fileExt}`;
+      if (screenshot) {
+        const fileExt = screenshot.name.split(".").pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `donations/${fileName}`;
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("verification-documents")
-        .upload(fileName, screenshot);
+        const { error: uploadError } = await supabase.storage
+          .from("verification-documents")
+          .upload(filePath, screenshot);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
+
+        screenshotUrl = filePath;
+      }
 
       const { error } = await supabase.from("cash_donations").insert([
         {
           user_id: userData.id,
           user_name: userData.name,
           user_email: userData.email,
-          amount: formData.amount,
-          category: finalCategory,
+          amount: parseFloat(formData.amount),
+          category: formData.category,
           message: formData.message,
-          screenshot_url: uploadData.path,
+          screenshot_url: screenshotUrl,
+          status: "pending",
         },
       ]);
 
       if (error) throw error;
 
-      setFeedback({ type: "success", message: "Donation submitted successfully! Admin will review it soon." });
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 2000);
+      setFeedback({
+        type: "success",
+        message: "Donation submitted successfully! We will verify it soon.",
+      });
+
+      setTimeout(() => navigate("/dashboard"), 2000);
     } catch (error) {
+      setFeedback({ type: "error", message: error.message });
+    } finally {
       setLoading(false);
-      setFeedback({ type: "error", message: "Error submitting donation: " + error.message });
     }
   };
 
@@ -129,214 +267,282 @@ function CashDonationForm() {
     <div className="h-screen bg-white text-slate-900 flex flex-col font-poppins overflow-hidden">
       <AuthenticatedNavbar />
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 relative overflow-hidden bg-slate-50/50 pt-20">
         {/* Left Panel: Process Sidebar */}
-        <aside className="w-[480px] bg-slate-50 border-r border-slate-200 p-16 flex flex-col justify-center animate-fade-in shrink-0">
-          <div className="mb-14">
-            <h2 className="text-4xl font-black tracking-tighter text-slate-900 leading-none">Donation <span className="text-slate-300">Process</span></h2>
+        <aside className="hidden md:flex w-72 bg-white/40 backdrop-blur-2xl border-r border-slate-100/50 pt-6 px-6 pb-8 flex flex-col shrink-0 relative z-20 shadow-[20px_0_40px_rgba(0,0,0,0.01)]">
+          <button
+            onClick={() => (step === 1 ? navigate("/donate") : setStep(1))}
+            className="w-9 h-9 rounded-full border border-slate-100 flex items-center justify-center text-slate-400 mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+
+          <div className="mb-8">
+            <h2 className="text-3xl font-black tracking-tight text-slate-900">Process <span className="text-slate-300">Guide</span></h2>
+            <div className="h-1 w-8 bg-[#124074] rounded-full mt-2"></div>
           </div>
 
-          <div className="space-y-12">
-            {processSteps.map((s, index) => (
-              <div key={index} className="flex gap-8 group">
-                <div className="relative shrink-0">
-                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black transition-all duration-500 shadow-sm text-xl border ${(step === 1 && index === 0) || (step === 2 && index > 0 && index < 3)
-                      ? "bg-[#124074] text-white border-[#124074]"
-                      : "bg-white text-slate-400 border-slate-200 group-hover:bg-[#124074] group-hover:text-white group-hover:border-[#124074]"
-                    }`}>
-                    {index + 1}
+          <div className="relative flex-1 flex flex-col justify-center">
+            {/* Timeline Line */}
+            <div className="absolute left-5 top-0 bottom-0 w-px bg-slate-100"></div>
+
+            <div className="space-y-4 relative z-10">
+              {[
+                { title: "Item Detail", desc: "Amount, Category, Message" },
+                { title: "Method", desc: "Bank or Stripe." },
+                { title: "Verification", desc: "Upload proof if bank." },
+                { title: "Admin Approval", desc: "Wait for Admin review." }
+              ].map((s, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[13px] font-black border-2 bg-white text-slate-400 border-slate-100">
+                    0{i + 1}
                   </div>
-                  {index < processSteps.length - 1 && (
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[1px] h-12 bg-gradient-to-b from-slate-200 to-transparent"></div>
-                  )}
+                  <div className="pt-1">
+                    <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-slate-900">
+                      {s.title}
+                    </h4>
+                    <p className="text-sm text-slate-400 font-medium leading-relaxed mt-1.5">
+                      {s.desc}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className={`text-lg font-black uppercase tracking-widest transition-colors ${(step === 1 && index === 0) || (step === 2 && index > 0 && index < 3)
-                      ? "text-[#124074]"
-                      : "text-slate-500 group-hover:text-[#124074]"
-                    }`}>{s.title}</h4>
-                  <p className="text-base text-slate-400 font-medium leading-relaxed mt-3 group-hover:text-slate-600 transition-colors max-w-[280px]">
-                    {s.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </aside>
 
         {/* Right Panel: Form Area */}
-        <main className="flex-1 relative flex flex-col pt-4 lg:pt-6 pb-8 lg:pb-12 px-8 lg:px-12 overflow-hidden bg-slate-50/30">
-          <div className="max-w-2xl w-full mx-auto animate-slide-up">
-            <button
-              onClick={() => step === 1 ? navigate("/donate") : setStep(1)}
-              className="flex items-center gap-2 text-slate-500 hover:text-[#124074] font-bold uppercase tracking-widest text-xs mt-4 mb-6 transition-colors group"
-            >
-              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-              <span>Back</span>
-            </button>
+        <main
+          ref={mainContentRef}
+          className="flex-1 relative flex flex-col pt-6 pb-8 px-8 lg:px-16 overflow-y-auto overflow-x-hidden bg-transparent"
+        >
+          <div className="max-w-3xl w-full mx-auto relative z-10">
+            <header className="mb-6 animate-fade-in">
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight text-[#124074]">
+                {step === 1 ? (
+                  <>Donate <span className="font-black">Cash</span></>
+                ) : (
+                  <><span className="font-black">Bank</span> Details</>
+                )}
+              </h1>
+              <p className="text-xs text-slate-500 mt-3 font-medium max-w-md leading-relaxed">
+                {step === 1
+                  ? "Your contribution directly funds essential services for those in need."
+                  : "Follow the steps below to complete your secure bank transfer."}
+              </p>
+            </header>
 
-            <h1 className="text-4xl md:text-5xl font-medium mb-6 tracking-tighter leading-[1.1] text-[#124074]">
-              {step === 1 ? "Cash" : "Payment"} <br/>
-              <span className="text-[#124074] font-black">{step === 1 ? "Donation" : "Details"}</span>
-            </h1>
+            <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 md:p-10 shadow-[0_40px_100px_rgba(0,0,0,0.03)] border border-white relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#124074]/20 to-transparent"></div>
 
-            {feedback && (
-              <div className={`mb-6 p-4 rounded-[1.5rem] border flex items-start gap-3 animate-fade-in ${
-                feedback.type === "success" ? "bg-green-50 border-green-100 text-green-800" :
-                feedback.type === "warning" ? "bg-yellow-50 border-yellow-100 text-yellow-800" :
-                "bg-red-50 border-red-100 text-red-800"
-              }`}>
-                <AlertCircle className="w-5 h-5 shrink-0 mt-1" />
-                <span className="font-bold text-base">{feedback.message}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {step === 1 ? (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Donation Amount (PKR)</label>
-                    <div className="relative group">
-                      <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-[#124074] transition-colors" />
-                      <input
-                        type="number"
-                        name="amount"
-                        placeholder="Enter amount in PKR"
-                        value={formData.amount}
-                        onChange={handleChange}
-                        required
-                        className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-4 pl-14 pr-6 text-lg font-light focus:border-[#124074] focus:ring-4 focus:ring-[#124074]/5 transition-all outline-none placeholder:text-slate-200"
-                        min="1"
-                      />
-                    </div>
+              {feedback && (
+                <div
+                  className={`mb-10 p-5 rounded-2xl border flex items-start gap-4 animate-slide-down ${feedback.type === "success"
+                    ? "bg-emerald-50/50 border-emerald-100 text-emerald-800"
+                    : feedback.type === "warning"
+                      ? "bg-amber-50/50 border-amber-100 text-amber-800"
+                      : "bg-rose-50/50 border-rose-100 text-rose-800"
+                    }`}
+                >
+                  <div className={`p-2 rounded-lg ${feedback.type === "success" ? "bg-emerald-500/10" :
+                    feedback.type === "warning" ? "bg-amber-500/10" : "bg-rose-500/10"
+                    }`}>
+                    <AlertCircle className="w-5 h-5 shrink-0" />
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Assistance Category</label>
-                    <CustomDropdown
-                      options={categories.map(cat => ({ value: cat, label: cat }))}
-                      value={formData.category}
-                      onChange={(val) => setFormData({ ...formData, category: val })}
-                      placeholder="Select a category"
-                      className="!rounded-[1.5rem] !py-4 !px-6 !text-lg !font-light"
-                    />
-                  </div>
-
-                  {formData.category === "Other" && (
-                    <div className="space-y-2 animate-fade-in">
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Specify Category</label>
-                      <input
-                        type="text"
-                        name="otherCategory"
-                        placeholder="What are you supporting?"
-                        value={formData.otherCategory}
-                        onChange={handleChange}
-                        required
-                        className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-4 px-6 text-lg font-light focus:border-[#124074] focus:ring-4 focus:ring-[#124074]/5 transition-all outline-none placeholder:text-slate-200"
-                      />
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Message of Support</label>
-                    <textarea
-                      name="message"
-                      placeholder="Add a message (Optional)..."
-                      value={formData.message}
-                      onChange={handleChange}
-                      rows="3"
-                      className="w-full bg-white border border-slate-200 rounded-[2rem] py-4 px-6 text-lg font-light focus:border-[#124074] focus:ring-4 focus:ring-[#124074]/5 transition-all outline-none placeholder:text-slate-200 resize-none"
-                    />
-                  </div>
-
-                  <div className="flex justify-center pt-0">
-                    <button
-                      type="submit"
-                      className="w-max bg-[#124074] text-white rounded-[1.5rem] py-3.5 px-10 text-base font-black uppercase tracking-widest shadow-2xl shadow-blue-900/20 hover:scale-[1.02] hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center gap-3"
-                      disabled={loading}
-                    >
-                      <span>Proceed to Pay</span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-3 mb-6">
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight mb-4">Bank Details</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bank</span>
-                        <span className="text-base font-bold text-[#124074]">Meezan Bank</span>
-                      </div>
-                      <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Title</span>
-                        <span className="text-base font-bold text-[#124074]">Share For Good</span>
-                      </div>
-                      <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Account</span>
-                        <span className="text-base font-bold text-[#124074]">01234567890123</span>
-                      </div>
-                      <div className="flex flex-col gap-1 pt-1">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">IBAN</span>
-                        <span className="text-sm font-bold text-[#124074] break-all">PK12MEZN0001234567890123</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Upload Payment Screenshot</label>
-                    <input
-                      type="file"
-                      id="screenshot"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          setScreenshot(file);
-                          setScreenshotName(file.name);
-                        }
-                      }}
-                      required
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="screenshot"
-                      className="block cursor-pointer group"
-                    >
-                      <div className="border-4 border-dashed border-slate-200 rounded-[2rem] p-6 text-center group-hover:border-[#124074] group-hover:bg-slate-50 transition-all duration-500">
-                        {screenshotName ? (
-                          <div className="space-y-2 animate-fade-in">
-                            <FileText className="w-10 h-10 text-[#124074] mx-auto" strokeWidth={1} />
-                            <p className="text-sm font-bold text-slate-900">{screenshotName}</p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-[#124074]">Click to change</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <Upload className="w-10 h-10 text-slate-200 mx-auto group-hover:text-[#124074] transition-colors" strokeWidth={1} />
-                            <p className="text-base font-bold text-slate-400 group-hover:text-slate-600 transition-colors">Select Proof</p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">JPG, PNG (Max 10MB)</p>
-                          </div>
-                        )}
-                      </div>
-                    </label>
-                  </div>
-
-                  <div className="flex justify-center pt-2">
-                    <button
-                      type="submit"
-                      className={`w-max bg-[#124074] text-white rounded-[1.5rem] py-5 px-12 text-lg font-black uppercase tracking-[0.2em] shadow-2xl shadow-blue-900/20 hover:scale-[1.02] hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center gap-3 ${loading ? 'opacity-70 pointer-events-none' : ''}`}
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <span className="animate-pulse">Processing...</span>
-                      ) : (
-                        <span>Submit Donation</span>
-                      )}
-                    </button>
-                  </div>
-                </>
+                  <span className="font-bold text-sm pt-2">
+                    {feedback.message}
+                  </span>
+                </div>
               )}
-            </form>
+
+              <form
+                onSubmit={step === 1 ? handleNextStep : handleSubmit}
+                className={`space-y-10 ${hasPending ? "opacity-50 pointer-events-none select-none" : ""
+                  }`}
+              >
+                {step === 1 ? (
+                  <>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">
+                          Donation Amount (PKR)
+                        </label>
+                        <div className="relative group">
+                          <input
+                            type="number"
+                            name="amount"
+                            placeholder="Enter amount"
+                            value={formData.amount}
+                            onChange={handleChange}
+                            required
+                            min="1"
+                            className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-4 px-6 text-sm font-semibold text-slate-600 focus:bg-white focus:border-[#124074] focus:ring-8 focus:ring-[#124074]/5 transition-all outline-none placeholder:text-slate-300 placeholder:font-light"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">
+                          Category
+                        </label>
+                        <CustomDropdown
+                          options={categories.map((cat) => ({
+                            value: cat,
+                            label: cat,
+                          }))}
+                          value={formData.category}
+                          onChange={(val) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              category: val,
+                            }))
+                          }
+                          placeholder="Select Category"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">
+                        Message (Optional)
+                      </label>
+                      <textarea
+                        name="message"
+                        placeholder="Leave a message of support..."
+                        value={formData.message}
+                        onChange={handleChange}
+                        rows="4"
+                        className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-4 px-6 text-sm font-semibold text-slate-600 focus:bg-white focus:border-[#124074] focus:ring-8 focus:ring-[#124074]/5 transition-all outline-none placeholder:text-slate-300 placeholder:font-light resize-none"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">
+                        Payment Method
+                      </label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("stripe")}
+                          className={`p-5 rounded-2xl border text-left transition-all ${paymentMethod === "stripe"
+                              ? "border-[#124074] bg-[#124074]/5 ring-4 ring-[#124074]/5"
+                              : "border-slate-100 bg-slate-50/50"
+                            }`}
+                        >
+                          <p className="text-sm font-bold text-slate-900">Credit / Debit Card</p>
+                          <p className="text-xs font-medium text-slate-400 mt-1">Pay securely via Stripe gateway.</p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("bank_transfer")}
+                          className={`p-5 rounded-2xl border text-left transition-all ${paymentMethod === "bank_transfer"
+                              ? "border-[#124074] bg-[#124074]/5 ring-4 ring-[#124074]/5"
+                              : "border-slate-100 bg-slate-50/50"
+                            }`}
+                        >
+                          <p className="text-sm font-bold text-slate-900">Bank Transfer</p>
+                          <p className="text-xs font-medium text-slate-400 mt-1">Manual transfer & upload receipt.</p>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                      <button
+                        type="submit"
+                        className={`w-full md:w-max bg-[#124074] text-white rounded-2xl py-4 px-12 text-[12px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4 ${loading ? "opacity-70 pointer-events-none" : ""
+                          }`}
+                        disabled={loading}
+                      >
+                        {loading ? "Processing..." : (
+                          <>
+                            {paymentMethod === "stripe" ? "Pay Now" : "Continue"}
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-[#124074]/5 rounded-3xl p-8 border border-[#124074]/10">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-[#124074] mb-6">Bank Account Details</h3>
+                      <div className="space-y-4">
+                        {[
+                          { label: "Bank", value: "Meezan Bank" },
+                          { label: "Title", value: "Share For Good" },
+                          { label: "Account", value: "01234567890123" },
+                        ].map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center border-b border-[#124074]/5 pb-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.label}</span>
+                            <span className="text-sm font-bold text-slate-900">{item.value}</span>
+                          </div>
+                        ))}
+                        <div className="pt-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">IBAN</span>
+                          <div className="bg-white/50 p-3 rounded-xl border border-[#124074]/5 text-[11px] font-bold text-[#124074] break-all">
+                            PK12MEZN0001234567890123
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">
+                        Upload Payment Proof
+                      </label>
+                      <input
+                        type="file"
+                        id="screenshot"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            setScreenshot(file);
+                            setScreenshotName(file.name);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <label htmlFor="screenshot" className="block cursor-pointer group">
+                        <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-2xl p-4 hover:bg-white hover:border-[#124074] transition-all duration-300">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                              {screenshotName ? <FileText className="w-5 h-5 text-[#124074]" /> : <Upload className="w-5 h-5 text-slate-300" />}
+                            </div>
+                            <div>
+                              <p className="text-[13px] font-bold text-slate-700">{screenshotName || "Upload Proof"}</p>
+                              <p className="text-[10px] font-medium text-slate-400">JPG, PNG (Max 10MB)</p>
+                            </div>
+                          </div>
+                          {screenshotName ? (
+                            <CheckCircle className="w-5 h-5 text-emerald-500" />
+                          ) : (
+                            <ArrowRight className="w-5 h-5 text-slate-200 group-hover:text-[#124074] group-hover:translate-x-1 transition-all" />
+                          )}
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                      <button
+                        type="submit"
+                        className={`w-full md:w-max bg-[#124074] text-white rounded-2xl py-4 px-12 text-[12px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4 ${loading ? "opacity-70 pointer-events-none" : ""
+                          }`}
+                        disabled={loading}
+                      >
+                        {loading ? "Submitting..." : (
+                          <>
+                            Submit Donation
+                            <CheckCircle className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </form>
+            </div>
           </div>
         </main>
       </div>

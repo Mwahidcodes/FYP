@@ -35,7 +35,7 @@ const HowItWorks = () => {
                 </div>
                 <div className="absolute -top-2 -right-2 w-7 h-7 bg-accent-500 rounded-full flex items-center justify-center text-white font-bold text-sm">{item.step}</div>
             </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-3 font-poppins">{item.title}</h3>
+            <h3 className="text-xl font-semibold text-gray-800 mb-3 font-outfit">{item.title}</h3>
             <p className="text-gray-600">{item.description}</p>
         </div>
     );
@@ -48,25 +48,11 @@ const HowItWorks = () => {
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent-200 rounded-full blur-3xl opacity-20 -ml-32 -mb-32"></div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                    <div className="flex items-start mb-4">
-                        <button
-                            type="button"
-                            onClick={() => navigate("/")}
-                            className="w-10 h-10 border-2 border-gray-300 rounded-lg flex items-center justify-center hover:border-primary-500 hover:bg-primary-50 transition-all flex-shrink-0"
-                        >
-                            <ArrowLeft className="w-5 h-5 text-gray-600 group-hover:text-primary-600" />
-                        </button>
-
-                        <div className="text-center max-w-3xl mx-auto flex-1">
-                            <div className="inline-flex items-center gap-2 bg-primary-100 text-primary-700 px-4 py-1.5 rounded-full text-xs font-semibold mb-3 shadow-sm">
-                                <HelpCircle className="w-3 h-3" />
-                                <span>Simple & Transparent</span>
-                            </div>
-                            <h1 className="text-3xl md:text-4xl font-bold font-poppins text-gray-900 mb-2">How <span className="gradient-text">Share4Good</span> Works</h1>
+                    <div className="text-center max-w-3xl mx-auto">
+                        <h1 className="text-4xl md:text-6xl font-normal tracking-tight text-[#124074] mb-3">How <span className="font-black">Share4Good</span> Works</h1>
                             <p className="text-sm text-gray-600">Whether you're here to give or receive, our platform makes it easy, secure, and transparent.</p>
                         </div>
                     </div>
-                </div>
             </section>
 
             {/* For Donors */}
@@ -80,7 +66,7 @@ const HowItWorks = () => {
                         {donorSteps.map((item, i) => <StepCard key={i} item={item} color="from-primary-500 to-primary-600" />)}
                     </div>
                     <div className="text-center mt-12">
-                        <Link to="/signup" className="btn-primary inline-flex items-center gap-2">Start Donating <ArrowRight className="w-5 h-5" /></Link>
+                        <Link to="/?signup=true" className="btn-primary inline-flex items-center gap-2">Start Donating <ArrowRight className="w-5 h-5" /></Link>
                     </div>
                 </div>
             </section>
@@ -96,7 +82,7 @@ const HowItWorks = () => {
                         {recipientSteps.map((item, i) => <StepCard key={i} item={item} color="from-secondary-500 to-secondary-600" />)}
                     </div>
                     <div className="text-center mt-12">
-                        <Link to="/signup" className="btn-secondary inline-flex items-center gap-2">Request Assistance <ArrowRight className="w-5 h-5" /></Link>
+                        <Link to="/?signup=true" className="btn-secondary inline-flex items-center gap-2">Request Assistance <ArrowRight className="w-5 h-5" /></Link>
                     </div>
                 </div>
             </section>
@@ -126,9 +112,9 @@ const HowItWorks = () => {
             {/* CTA */}
             <section className="py-20 bg-gradient-to-r from-primary-600 to-secondary-600">
                 <div className="max-w-4xl mx-auto px-4 text-center">
-                    <h2 className="text-3xl md:text-4xl font-bold text-white font-poppins mb-6">Ready to Get Started?</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold text-white font-outfit mb-6">Ready to Get Started?</h2>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <Link to="/signup" className="bg-white text-primary-600 px-8 py-4 rounded-xl font-semibold hover:bg-gray-100 transition-all shadow-lg">Create Account</Link>
+                        <Link to="/?signup=true" className="bg-white text-primary-600 px-8 py-4 rounded-xl font-semibold hover:bg-gray-100 transition-all shadow-lg">Create Account</Link>
                         <Link to="/contact" className="border-2 border-white text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/10 transition-all">Contact Support</Link>
                     </div>
                 </div>

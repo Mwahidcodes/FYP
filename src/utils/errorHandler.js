@@ -5,7 +5,7 @@
 export const getErrorMessage = (error) => {
   // Network errors
   if (!navigator.onLine) {
-    return "No internet connection. Please check your network and try again.";
+    return "Check your internet connection and try again.";
   }
 
   // Supabase errors
@@ -30,7 +30,7 @@ export const getErrorMessage = (error) => {
   if (error?.message) {
     // Check for common error patterns
     if (error.message.includes("timeout") || error.message.includes("Network")) {
-      return "Connection timeout. Please check your internet and try again.";
+      return "Check your internet connection and try again.";
     }
     if (error.message.includes("Failed to fetch")) {
       return "Unable to connect to the server. Please try again later.";

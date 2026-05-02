@@ -81,7 +81,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
   font-size: 0.938rem;
   box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
   isolation: isolate;
@@ -1191,7 +1191,7 @@
   border-radius: 10px;
   color: #e2e8f0;
   font-size: 0.875rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
   transition: all 0.3s ease;
   outline: none;
 }
@@ -1267,7 +1267,7 @@
   border-radius: 10px;
   color: #e2e8f0;
   font-size: 0.875rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1302,7 +1302,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
 }
 
 .history-clear-filters:hover {

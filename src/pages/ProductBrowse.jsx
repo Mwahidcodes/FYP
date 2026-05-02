@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Shield, ArrowLeft } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import AuthenticatedNavbar from "../components/AuthenticatedNavbar";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import SkeletonLoader from "../components/SkeletonLoader";
 import CustomDropdown from "../components/CustomDropdown";
+import VerificationFormModal from "../components/VerificationFormModal";
 import { getErrorMessage } from "../utils/errorHandler";
 import "../styles/ProductBrowse.css";
 
@@ -26,19 +28,10 @@ function ProductBrowse() {
   const [requestLoading, setRequestLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState(null);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showVerificationForm, setShowVerificationForm] = useState(false);
 
-  const categories = [
-    "All",
-    "Electronics",
-    "Clothing",
-    "Furniture",
-    "Books",
-    "Toys",
-    "Food Items",
-    "Medical Supplies",
-    "Educational Materials",
-    "Other",
-  ];
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     loadProducts();
@@ -74,14 +67,19 @@ function ProductBrowse() {
           .map((r) => r.product_donation_id)
       );
 
-      // Fetch bidding products: hide products that are in bidding (any status)
+      // Fetch bidding products: hide products that are in active/upcoming bidding 
+      // or ended auctions that have a winner
       const { data: inBidding, error: biddingError } = await supabase
         .from("bidding_products")
-        .select("product_donation_id");
+        .select("product_donation_id, status, winner_id");
 
       if (biddingError) console.error("Error loading bidding products:", biddingError);
 
-      const biddingIds = new Set((inBidding || []).map((bp) => bp.product_donation_id));
+      const biddingIds = new Set(
+        (inBidding || [])
+          .filter(bp => bp.status !== 'ended' || bp.winner_id)
+          .map((bp) => bp.product_donation_id)
+      );
 
       // Request list = approved, not requested, not in bidding
       const availableProducts = (data || []).filter(
@@ -89,6 +87,33 @@ function ProductBrowse() {
       );
 
       setProducts(availableProducts);
+
+      // Standard categories as requested
+      const standardCategories = ["Electronics", "Clothes", "Furniture", "Toys", "Educational Material", "Other"];
+      const categoryCounts = {};
+      standardCategories.forEach(cat => categoryCounts[cat] = 0);
+
+      availableProducts.forEach(product => {
+        const cat = (product.category || 'Other').trim();
+        // Map old categories to new ones if necessary, or just count
+        if (categoryCounts.hasOwnProperty(cat)) {
+          categoryCounts[cat]++;
+        } else {
+          categoryCounts['Other']++;
+        }
+      });
+
+      const dynamicCategories = standardCategories.map(name => ({
+        id: name.toLowerCase().trim(),
+        name: name,
+        count: categoryCounts[name]
+      }));
+
+      setCategories([
+        { id: 'all', name: 'All Items', count: availableProducts.length },
+        ...dynamicCategories
+      ]);
+
     } catch (error) {
       console.error("Error loading products:", error);
       const errorMessage = getErrorMessage(error);
@@ -104,9 +129,15 @@ function ProductBrowse() {
 
     // Filter by category
     if (selectedCategory !== "all") {
-      filtered = filtered.filter(
-        (product) => product.category === selectedCategory
-      );
+      const standardCatsLower = ["electronics", "clothes", "furniture", "toys", "educational material", "other"];
+      filtered = filtered.filter((product) => {
+        const cat = (product.category || "Other").toLowerCase().trim();
+        if (selectedCategory === "other") {
+          // Include if category is "Other" OR if it's not in the standard list
+          return !standardCatsLower.includes(cat) || cat === "other";
+        }
+        return cat === selectedCategory;
+      });
     }
 
     // Filter by search term (enhanced - searches in multiple fields)
@@ -206,10 +237,7 @@ function ProductBrowse() {
 
     const userData = JSON.parse(user);
     if (!userData.is_verified) {
-      setFeedback({ type: "error", message: "Your account must be verified to request products. Redirecting to verification..." });
-      setTimeout(() => {
-        navigate("/verify-documents");
-      }, 1500);
+      setShowVerificationModal(true);
       return;
     }
 
@@ -300,309 +328,299 @@ function ProductBrowse() {
   };
 
   return (
-    <>
+    <div className="min-h-screen bg-white animate-fade-in pt-20">
       <AuthenticatedNavbar />
-      <div className="product-browse-container">
-        {feedback && (
-          <div
-            className={`page-alert ${feedback.type === "success"
-                ? "page-alert-success"
-                : feedback.type === "warning"
-                  ? "page-alert-warning"
-                  : "page-alert-error"
-              }`}
-            style={{ maxWidth: "1200px", margin: "0 auto 1rem" }}
-          >
-            <span className="page-alert-emoji">
-              {feedback.type === "success" ? "✅" : feedback.type === "warning" ? "⚠️" : "❌"}
-            </span>
-            <span>{feedback.message}</span>
-          </div>
-        )}
 
-        <div className="product-browse-header">
-          <h1>Browse Available Products</h1>
-          <p className="browse-subtitle">
-            Find products donated by generous donors
-          </p>
-        </div>
-
-        {/* Enhanced Search and Filter Section */}
-        <div className="search-filter-section">
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Search by name, description, category, or donor..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-            <i className="ri-search-line search-icon"></i>
-            {searchTerm && (
-              <button
-                className="clear-search-btn"
-                onClick={() => setSearchTerm("")}
-                title="Clear search"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          <div className="filters-row">
-            <div className="filter-group">
-              <label>Category</label>
-              <CustomDropdown
-                options={categories.map(cat => ({ value: cat === "All" ? "all" : cat, label: cat }))}
-                value={selectedCategory}
-                onChange={setSelectedCategory}
-                placeholder="Select Category"
-              />
-            </div>
-
-            <div className="filter-group">
-              <label>Date</label>
-              <CustomDropdown
-                options={[
-                  { value: "all", label: "All Time" },
-                  { value: "today", label: "Today" },
-                  { value: "week", label: "This Week" },
-                  { value: "month", label: "This Month" }
-                ]}
-                value={dateFilter}
-                onChange={setDateFilter}
-                placeholder="Select Date"
-              />
-            </div>
-
-            <div className="filter-group">
-              <label>Sort By</label>
-              <CustomDropdown
-                options={[
-                  { value: "newest", label: "Newest First" },
-                  { value: "oldest", label: "Oldest First" },
-                  { value: "name-asc", label: "Name (A-Z)" },
-                  { value: "name-desc", label: "Name (Z-A)" }
-                ]}
-                value={sortBy}
-                onChange={setSortBy}
-                placeholder="Sort By"
-              />
-            </div>
-
-            {(searchTerm || selectedCategory !== "all" || dateFilter !== "all") && (
-              <button
-                className="clear-filters-btn"
-                onClick={() => {
-                  setSearchTerm("");
-                  setSelectedCategory("all");
-                  setDateFilter("all");
-                  setSortBy("newest");
-                }}
-              >
-                Clear All
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Results Count */}
-        <div className="results-info">
-          <p>
-            Showing <strong>{filteredProducts.length}</strong> of{" "}
-            <strong>{products.length}</strong> products
-          </p>
-        </div>
-
-        {error && (
-          <div style={{ maxWidth: "1200px", margin: "0 auto 1rem" }}>
-            <ErrorMessage
-              message={error}
-              onRetry={() => {
-                setError(null);
-                loadProducts();
-              }}
-              dismissible={true}
-              onDismiss={() => setError(null)}
-            />
-          </div>
-        )}
-
-        {/* Products Grid */}
-        {loading ? (
-          products.length === 0 ? (
-            <LoadingSpinner size="large" message="Loading products..." />
-          ) : (
-            <SkeletonLoader type="card" count={6} />
-          )
-        ) : filteredProducts.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📦</div>
-            <h3>No products found</h3>
-            <p>
-              {searchTerm || selectedCategory !== "all"
-                ? "Try adjusting your search or filter criteria"
-                : "No products available at the moment"}
+      {/* Modern Fixed Sidebar */}
+      <aside className="w-80 hidden lg:block shrink-0">
+        <div className="fixed left-0 top-20 bottom-0 w-80 bg-white z-[60] flex flex-col border-r border-slate-100 shadow-[20px_0_40px_rgba(0,0,0,0.02)]">
+          <div className="px-8 pt-8 pb-4 border-b border-slate-50 mb-2">
+            <button
+              onClick={() => navigate("/request-donation")}
+              className="w-9 h-9 rounded-full border border-slate-100 flex items-center justify-center text-slate-400 mb-6 transition-colors hover:bg-white hover:text-[#124074] hover:border-[#124074]/30"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <h3 className="text-2xl font-black uppercase tracking-[0.2em] text-slate-900 mb-1">Category</h3>
+            <p className="text-sm text-slate-400 leading-relaxed font-medium">
+              Select a category to find the products you need
             </p>
           </div>
-        ) : (
-          <div className="products-grid">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="product-card">
-                <div className="product-image-container">
-                  {product.image_url ? (
-                    <ProductImageThumbnail filePath={product.image_url} />
-                  ) : (
-                    <div className="product-image-placeholder">📦</div>
-                  )}
-                </div>
-                <div className="product-info">
-                  <div className="product-category-badge">{product.category}</div>
-                  <h3 className="product-name">
-                    {product.product_name || "Unnamed Product"}
-                  </h3>
-                  <p className="product-description">
-                    {product.description
-                      ? product.description.length > 100
-                        ? product.description.substring(0, 100) + "..."
-                        : product.description
-                      : "No description available"}
-                  </p>
-                  <div className="product-footer">
-                    <span className="product-date">
-                      {new Date(product.created_at).toLocaleDateString()}
-                    </span>
-                    <button
-                      className="btn-view-product"
-                      onClick={() => handleViewProduct(product)}
-                    >
-                      View Details
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
 
-        {/* Product Detail Modal */}
-        {selectedProduct && (
-          <div
-            className="product-modal-overlay"
-            onClick={closeProductDetail}
-          >
-            <div
-              className="product-modal"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="product-modal-header">
-                <h2>Product Details</h2>
-                <button className="btn-close-modal" onClick={closeProductDetail}>
-                  ✕
-                </button>
-              </div>
-              <div className="product-modal-content">
-                {productImageUrl && (
-                  <div className="product-modal-image">
-                    <img src={productImageUrl} alt={selectedProduct.product_name} />
-                  </div>
+          <nav className="flex-1 px-4 space-y-1 overflow-y-auto no-scrollbar">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`w-full group flex items-center justify-between px-6 py-4 rounded-xl transition-all duration-300 relative overflow-hidden ${selectedCategory === category.id
+                  ? 'bg-slate-50 text-[#124074] font-bold'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+              >
+                {/* Active Indicator */}
+                {selectedCategory === category.id && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#124074] shadow-[0_0_20px_rgba(18,64,116,0.2)]"></div>
                 )}
-                <div className="product-modal-info">
-                  <div className="product-modal-category">
-                    {selectedProduct.category}
-                  </div>
-                  <h3>{selectedProduct.product_name || "Unnamed Product"}</h3>
-                  <div className="product-modal-section">
-                    <strong>Description:</strong>
-                    <p>{selectedProduct.description || "No description available"}</p>
-                  </div>
-                  <div className="product-modal-section">
-                    <strong>Donated by:</strong>
-                    <p>{selectedProduct.user_name}</p>
-                  </div>
-                  <div className="product-modal-section">
-                    <strong>Date:</strong>
-                    <p>
-                      {new Date(selectedProduct.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="product-modal-actions">
-                    <button
-                      className="btn-request-product"
-                      onClick={() => handleRequestProduct(selectedProduct)}
-                    >
-                      Request This Product
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* Product Request Modal */}
-        {showRequestModal && requestingProduct && (
-          <div
-            className="product-modal-overlay"
-            onClick={closeRequestModal}
-          >
-            <div
-              className="product-modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: "600px" }}
-            >
-              <div className="product-modal-header">
-                <h2>Request Product</h2>
-                <button className="btn-close-modal" onClick={closeRequestModal}>
-                  ✕
-                </button>
+                <div className="flex items-center gap-4 relative z-10">
+                  <span className={`text-[18px] tracking-wide transition-all duration-300 ${selectedCategory === category.id ? 'translate-x-1' : 'group-hover:translate-x-1'
+                    }`}>
+                    {category.name}
+                  </span>
+                </div>
+
+                <span className={`text-[11px] font-black px-3 py-1.5 rounded-lg transition-all duration-500 relative z-10 ${selectedCategory === category.id
+                  ? 'bg-[#124074] text-white shadow-[0_10px_20px_rgba(18,64,116,0.1)]'
+                  : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'
+                  }`}>
+                  {category.count}
+                </span>
+              </button>
+            ))}
+          </nav>
+        </div>
+      </aside>
+
+      {/* Main Content with Sidebar Offset */}
+      <div className="lg:pl-80">
+        {/* Hero Section */}
+        <section className="relative pt-24 pb-2 px-6">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-10">
+              <h1 className="text-4xl md:text-6xl font-medium tracking-tight text-[#124074] mb-4">
+                Request <span className="font-black">Products</span>
+              </h1>
+              <p className="text-slate-500 font-light max-w-xl mx-auto">
+                Find products donated by generous donors and request what you need
+              </p>
+            </div>
+
+            {/* Search and Quick Filters */}
+            <div className="relative group max-w-2xl mx-auto mb-12">
+              <div className="relative bg-white p-2 rounded-2xl shadow-[0_20px_50px_rgba(18,64,116,0.08)] border border-slate-100 flex items-center transition-all duration-500 focus-within:shadow-[0_20px_50px_rgba(18,64,116,0.15)] focus-within:border-[#124074]/20">
+                <div className="pl-6 pr-3">
+                  <i className="ri-search-line text-2xl text-[#124074] opacity-30 group-focus-within:opacity-100 transition-all duration-500"></i>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by name"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full py-3.5 text-lg font-light text-slate-900 bg-transparent outline-none placeholder:text-slate-300"
+                />
               </div>
-              <div className="product-modal-content">
-                <div className="product-modal-section">
-                  <strong>Product:</strong>
-                  <p>{requestingProduct.product_name || "Unnamed Product"}</p>
+            </div>
+
+          </div>
+        </section>
+
+        {/* Content Area */}
+        <main className="px-8 pb-24">
+          <div className="max-w-7xl mx-auto">
+            {/* Page Header Indicator */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-10 mt-0">
+              <div className="flex items-center gap-6">
+                <div className="w-2 h-16 bg-[#103866] rounded-full shadow-lg shadow-blue-900/10"></div>
+                <div>
+                  <h2 className="text-3xl font-light text-slate-900 tracking-tight leading-tight capitalize">
+                    {categories.find(c => c.id === selectedCategory)?.name || 'All Items'}
+                  </h2>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-0.5">
+                    {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'} Found
+                  </p>
                 </div>
-                <div className="product-modal-section">
-                  <strong>Category:</strong>
-                  <p>{requestingProduct.category}</p>
-                </div>
-                <div className="product-modal-section">
-                  <label htmlFor="request-reason">
-                    <strong>Reason for Request *</strong>
-                  </label>
-                  <textarea
-                    id="request-reason"
-                    value={requestReason}
-                    onChange={(e) => setRequestReason(e.target.value)}
-                    placeholder="Please explain why you need this product..."
-                    rows="5"
-                    className="request-reason-textarea"
-                    required
+              </div>
+
+              {/* Filters Aligned with Header */}
+              <div className="flex flex-wrap gap-6 items-end">
+                <div className="w-48">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Date Added</p>
+                  <CustomDropdown
+                    options={[
+                      { value: "all", label: "All Time" },
+                      { value: "today", label: "Today" },
+                      { value: "week", label: "This Week" },
+                      { value: "month", label: "This Month" }
+                    ]}
+                    value={dateFilter}
+                    onChange={setDateFilter}
+                    placeholder="Date"
                   />
-                  <small>This information will help the admin review your request.</small>
                 </div>
-                <div className="product-modal-actions">
-                  <button
-                    className="btn-cancel"
-                    onClick={closeRequestModal}
-                    disabled={requestLoading}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className={`btn-request-product ${requestLoading ? 'btn-loading' : ''}`}
-                    onClick={submitProductRequest}
-                    disabled={requestLoading || !requestReason.trim()}
-                  >
-                    {requestLoading ? "Submitting..." : "Submit Request"}
-                  </button>
+                <div className="w-48">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Sort By</p>
+                  <CustomDropdown
+                    options={[
+                      { value: "newest", label: "Newest First" },
+                      { value: "oldest", label: "Oldest First" },
+                      { value: "name-asc", label: "Name (A-Z)" },
+                      { value: "name-desc", label: "Name (Z-A)" }
+                    ]}
+                    value={sortBy}
+                    onChange={setSortBy}
+                    placeholder="Sort By"
+                  />
                 </div>
               </div>
             </div>
+
+            {error && (
+              <div className="mb-8">
+                <ErrorMessage message={error} onRetry={loadProducts} />
+              </div>
+            )}
+
+            {feedback && (
+              <div className={`mb-8 p-4 rounded-2xl flex items-center gap-3 font-bold ${feedback.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                }`}>
+                {feedback.type === 'success' ? '✅' : '❌'} {feedback.message}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[1, 2, 3, 4, 5, 6].map(i => <SkeletonLoader key={i} type="card" />)}
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-20 bg-slate-50 rounded-[3rem] border border-dashed border-slate-200">
+                <div className="text-6xl mb-6 opacity-20">📦</div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">No products found</h3>
+                <p className="text-slate-400">Try adjusting your filters or search terms</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden group hover:shadow-2xl hover:shadow-[#124074]/10 transition-all duration-500 cursor-pointer"
+                    onClick={() => handleViewProduct(product)}
+                  >
+                    <div className="h-56 bg-slate-50 relative overflow-hidden">
+                      <ProductImageThumbnail filePath={product.image_url} />
+
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-[#124074]/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col items-center justify-center p-6 text-center">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-2xl scale-50 group-hover:scale-100 transition-all duration-500">
+                          <i className="ri-arrow-right-line text-3xl text-[#124074]"></i>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-lg font-bold text-slate-800 mb-1 uppercase line-clamp-1 tracking-tight">
+                        {product.product_name}
+                      </h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                        Click To View Detail
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </main>
       </div>
-    </>
+
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={closeProductDetail}></div>
+          <div className="relative bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[3rem] shadow-2xl animate-slide-up flex flex-col lg:flex-row overflow-hidden no-scrollbar">
+            <button
+              onClick={closeProductDetail}
+              className="absolute top-6 right-6 lg:top-8 lg:right-8 z-50 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-slate-400 hover:text-red-500 transition-all"
+            >
+              <i className="ri-close-line text-2xl"></i>
+            </button>
+            <div className="lg:w-1/2 bg-slate-50 flex items-center justify-center p-8 lg:p-12">
+              {productImageUrl ? (
+                <img src={productImageUrl} alt={selectedProduct.product_name} className="max-w-full max-h-full object-contain rounded-3xl" />
+              ) : (
+                <div className="text-8xl opacity-10">📦</div>
+              )}
+            </div>
+            <div className="lg:w-1/2 p-8 lg:p-14 flex flex-col h-full bg-white">
+              <div className="bg-[#124074]/5 text-[#124074] self-start px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-8 shadow-sm">
+                {selectedProduct.category}
+              </div>
+              <h2 className="text-4xl font-black text-slate-900 mb-4 uppercase tracking-tighter">{selectedProduct.product_name}</h2>
+              <p className="text-lg text-slate-500 font-light leading-relaxed mb-10 line-clamp-4">{selectedProduct.description}</p>
+
+              <div className="space-y-6 mb-12">
+                <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-[#124074] shadow-sm">
+                    <i className="ri-user-line text-xl opacity-60"></i>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">Donated by</p>
+                    <p className="text-lg font-bold text-slate-800 tracking-tight">{selectedProduct.user_name}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-[#124074] shadow-sm">
+                    <i className="ri-calendar-line text-xl opacity-60"></i>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">Donated on</p>
+                    <p className="text-lg font-bold text-slate-800 tracking-tight">{new Date(selectedProduct.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                className="mt-auto w-full py-6 bg-[#124074] text-white rounded-2xl font-black uppercase tracking-[0.3em] shadow-2xl shadow-[#124074]/20 hover:scale-[1.02] active:scale-95 transition-all"
+                onClick={() => handleRequestProduct(selectedProduct)}
+              >
+                REQUEST PRODUCT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Required Modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowVerificationModal(false)}></div>
+          <div className="relative bg-white w-full max-w-md p-8 rounded-[2rem] shadow-2xl animate-slide-up text-center">
+            <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+              <Shield className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Verification Required</h2>
+            <p className="text-slate-500 font-medium leading-relaxed mb-8">
+              To ensure the safety and trust of our community, you must verify your identity by uploading documents before you can request products.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowVerificationModal(false);
+                  setShowVerificationForm(true);
+                }}
+                className="w-full bg-[#124074] text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-[#103866] transition-colors shadow-lg shadow-blue-900/20"
+              >
+                Verify Now
+              </button>
+              <button
+                onClick={() => setShowVerificationModal(false)}
+                className="w-full bg-slate-50 text-slate-500 py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Verification Form Modal */}
+      <VerificationFormModal
+        isOpen={showVerificationForm}
+        onClose={() => setShowVerificationForm(false)}
+        onSuccess={() => {
+          setShowVerificationForm(false);
+          // Refresh user data or show a success message
+          window.location.reload();
+        }}
+      />
+    </div>
   );
 }
 

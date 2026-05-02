@@ -1,7 +1,9 @@
 import React from 'react';
+import { ShieldCheck, DollarSign, HandHeart, Gift, ShoppingBag, Gavel } from 'lucide-react';
 
 function Summary({
   verifications,
+  verificationCounts,
   cashRequests,
   cashDonations,
   productDonations,
@@ -11,130 +13,146 @@ function Summary({
   return (
     <div className="stats-container">
       <div className="stat-card">
-        <h3>Verifications</h3>
-        <p className="stat-number">{verifications.length}</p>
+        <div className="stat-card-header">
+          <h3>Verifications</h3>
+        </div>
+        <p className="stat-number">{verificationCounts?.total || 0}</p>
         <div className="stat-breakdown">
-          <span className="stat-pending">
-            <strong>{verifications.filter((v) => v.status === "pending").length}</strong>
-            Pending
-          </span>
-          <span className="stat-approved">
-            <strong>{verifications.filter((v) => v.status === "approved").length}</strong>
-            Approved
-          </span>
-          <span className="stat-rejected">
-            <strong>{verifications.filter((v) => v.status === "rejected").length}</strong>
-            Rejected
-          </span>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Pending</span>
+            <span className="stat-value pending">{verificationCounts?.pending || 0}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Approved</span>
+            <span className="stat-value approved">{verificationCounts?.approved || 0}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Rejected</span>
+            <span className="stat-value rejected">{verificationCounts?.rejected || 0}</span>
+          </div>
         </div>
       </div>
 
       <div className="stat-card">
-        <h3>Cash Requests</h3>
+        <div className="stat-card-header">
+          <h3>Cash Requests</h3>
+        </div>
         <p className="stat-number">{cashRequests.length}</p>
         <div className="stat-breakdown">
-          <span className="stat-pending">
-            <strong>{cashRequests.filter((r) => r.status === "pending").length}</strong>
-            Pending
-          </span>
-          <span className="stat-approved">
-            <strong>{cashRequests.filter((r) => r.status === "approved").length}</strong>
-            Approved
-          </span>
-          <span className="stat-rejected">
-            <strong>{cashRequests.filter((r) => r.status === "rejected").length}</strong>
-            Rejected
-          </span>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Pending</span>
+            <span className="stat-value pending">{cashRequests.filter((r) => r.status === "pending").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Approved</span>
+            <span className="stat-value approved">{cashRequests.filter((r) => r.status === "approved").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Rejected</span>
+            <span className="stat-value rejected">{cashRequests.filter((r) => r.status === "rejected").length}</span>
+          </div>
         </div>
-        <p className="stat-amount">
-          <span>Total Approved:</span>
-          <strong>PKR {cashRequests
-            .filter((r) => r.status === "approved")
-            .reduce((sum, r) => sum + Number(r.amount), 0)
-            .toLocaleString()}</strong>
-        </p>
+        <div className="stat-amount-container">
+          <span className="stat-amount-label">Total Approved</span>
+          <p className="stat-amount-value">
+            PKR {cashRequests
+              .filter((r) => r.status === "approved")
+              .reduce((sum, r) => sum + Number(r.amount), 0)
+              .toLocaleString()}
+          </p>
+        </div>
       </div>
 
       <div className="stat-card">
-        <h3>Cash Donations</h3>
+        <div className="stat-card-header">
+          <h3>Cash Donations</h3>
+        </div>
         <p className="stat-number">{cashDonations.length}</p>
         <div className="stat-breakdown">
-          <span className="stat-pending">
-            <strong>{cashDonations.filter((d) => d.status === "pending").length}</strong>
-            Pending
-          </span>
-          <span className="stat-approved">
-            <strong>{cashDonations.filter((d) => d.status === "approved").length}</strong>
-            Approved
-          </span>
-          <span className="stat-rejected">
-            <strong>{cashDonations.filter((d) => d.status === "rejected").length}</strong>
-            Rejected
-          </span>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Pending</span>
+            <span className="stat-value pending">{cashDonations.filter((d) => d.status === "pending").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Approved</span>
+            <span className="stat-value approved">{cashDonations.filter((d) => d.status === "approved").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Rejected</span>
+            <span className="stat-value rejected">{cashDonations.filter((d) => d.status === "rejected").length}</span>
+          </div>
         </div>
-        <p className="stat-amount">
-          <span>Total Approved:</span>
-          <strong>PKR {cashDonations
-            .filter((d) => d.status === "approved")
-            .reduce((sum, d) => sum + Number(d.amount), 0)
-            .toLocaleString()}</strong>
-        </p>
+        <div className="stat-amount-container">
+          <span className="stat-amount-label">Total Received</span>
+          <p className="stat-amount-value">
+            PKR {cashDonations
+              .filter((d) => d.status === "approved")
+              .reduce((sum, d) => sum + Number(d.amount), 0)
+              .toLocaleString()}
+          </p>
+        </div>
       </div>
 
       <div className="stat-card">
-        <h3>Product Donations</h3>
+        <div className="stat-card-header">
+          <h3>Product Donations</h3>
+        </div>
         <p className="stat-number">{productDonations.length}</p>
         <div className="stat-breakdown">
-          <span className="stat-pending">
-            <strong>{productDonations.filter((d) => d.status === "pending").length}</strong>
-            Pending
-          </span>
-          <span className="stat-approved">
-            <strong>{productDonations.filter((d) => d.status === "approved").length}</strong>
-            Approved
-          </span>
-          <span className="stat-rejected">
-            <strong>{productDonations.filter((d) => d.status === "rejected").length}</strong>
-            Rejected
-          </span>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Pending</span>
+            <span className="stat-value pending">{productDonations.filter((d) => d.status === "pending").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Approved</span>
+            <span className="stat-value approved">{productDonations.filter((d) => d.status === "approved").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Rejected</span>
+            <span className="stat-value rejected">{productDonations.filter((d) => d.status === "rejected").length}</span>
+          </div>
         </div>
       </div>
 
       <div className="stat-card">
-        <h3>Product Requests</h3>
+        <div className="stat-card-header">
+          <h3>Product Requests</h3>
+        </div>
         <p className="stat-number">{productRequests.length}</p>
         <div className="stat-breakdown">
-          <span className="stat-pending">
-            <strong>{productRequests.filter((r) => r.status === "pending").length}</strong>
-            Pending
-          </span>
-          <span className="stat-approved">
-            <strong>{productRequests.filter((r) => r.status === "approved").length}</strong>
-            Approved
-          </span>
-          <span className="stat-rejected">
-            <strong>{productRequests.filter((r) => r.status === "rejected").length}</strong>
-            Rejected
-          </span>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Pending</span>
+            <span className="stat-value pending">{productRequests.filter((r) => r.status === "pending").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Approved</span>
+            <span className="stat-value approved">{productRequests.filter((r) => r.status === "approved").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Rejected</span>
+            <span className="stat-value rejected">{productRequests.filter((r) => r.status === "rejected").length}</span>
+          </div>
         </div>
       </div>
 
       <div className="stat-card">
-        <h3>Bidding Products</h3>
+        <div className="stat-card-header">
+          <h3>Bidding</h3>
+        </div>
         <p className="stat-number">{biddingProducts.length}</p>
         <div className="stat-breakdown">
-          <span className="stat-pending">
-            <strong>{biddingProducts.filter((b) => b.status === "upcoming").length}</strong>
-            Upcoming
-          </span>
-          <span className="stat-approved">
-            <strong>{biddingProducts.filter((b) => b.status === "active").length}</strong>
-            Active
-          </span>
-          <span className="stat-rejected">
-            <strong>{biddingProducts.filter((b) => b.status === "ended").length}</strong>
-            Ended
-          </span>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Active</span>
+            <span className="stat-value approved">{biddingProducts.filter((b) => b.status === "active").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Upcoming</span>
+            <span className="stat-value pending">{biddingProducts.filter((b) => b.status === "upcoming").length}</span>
+          </div>
+          <div className="stat-breakdown-item">
+            <span className="stat-label">Ended</span>
+            <span className="stat-value rejected">{biddingProducts.filter((b) => b.status === "ended").length}</span>
+          </div>
         </div>
       </div>
     </div>

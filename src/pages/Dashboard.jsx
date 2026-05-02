@@ -14,7 +14,8 @@ import {
   Search,
   X,
   Filter,
-  ArrowRight
+  ArrowRight,
+  Shield
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -22,6 +23,7 @@ import ErrorMessage from "../components/ErrorMessage";
 import SkeletonLoader from "../components/SkeletonLoader";
 import { getErrorMessage } from "../utils/errorHandler";
 import AuthenticatedNavbar from "../components/AuthenticatedNavbar";
+import VerificationFormModal from "../components/VerificationFormModal";
 import CustomDropdown from "../components/CustomDropdown";
 
 function Dashboard() {
@@ -39,6 +41,8 @@ function Dashboard() {
   const [historyTab, setHistoryTab] = useState("stats"); // 'stats', 'donations', 'requests'
   const [donationHistory, setDonationHistory] = useState([]);
   const [requestHistory, setRequestHistory] = useState([]);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showVerificationForm, setShowVerificationForm] = useState(false);
 
   const [donationSearch, setDonationSearch] = useState("");
   const [donationFilter, setDonationFilter] = useState("all"); // all, cash, product
@@ -442,11 +446,31 @@ function Dashboard() {
   };
 
   const handleRequestClick = async () => {
+    try {
+      // Fetch latest status to be 100% sure
+      const { data, error } = await supabase
+        .from("users")
+        .select("is_verified")
+        .eq("id", currentUser.id)
+        .single();
 
-    if (!currentUser.is_verified) {
-      navigate("/verify-documents");
-    } else {
-      navigate("/request-donation");
+      if (data?.is_verified) {
+        // Update local state and storage too
+        const updatedUser = { ...currentUser, is_verified: true };
+        setCurrentUser(updatedUser);
+        localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+        navigate("/request-donation");
+      } else {
+        setShowVerificationForm(true);
+      }
+    } catch (err) {
+      console.error("Error checking verification status:", err);
+      // Fallback to current state
+      if (!currentUser.is_verified) {
+        setShowVerificationForm(true);
+      } else {
+        navigate("/request-donation");
+      }
     }
   };
 
@@ -487,7 +511,7 @@ function Dashboard() {
   const donationButtonText = hasPendingDonation ? "Donation Pending" : "Donate Now";
 
   return (
-    <div className="min-h-screen bg-gray-50 animate-fade-in">
+    <div className="min-h-screen bg-gray-50 animate-fade-in pt-20">
       <AuthenticatedNavbar />
 
       {/* Welcome banner - Full Width */}
@@ -496,7 +520,7 @@ function Dashboard() {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
-              "url('https://images.unsplash.com/photo-1593113598332-cd288d649433?w=1600&q=80')",
+              "url('/assets/images/dashboard_hero_heart.png')",
           }}
         />
         <div className="absolute inset-0 bg-primary-900/40" />
@@ -509,11 +533,11 @@ function Dashboard() {
               <span>Making a difference together</span>
             </div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-roboto tracking-tight text-white mb-6 drop-shadow-sm">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-outfit tracking-tight text-white mb-6 drop-shadow-sm">
               Share4Good
             </h1>
 
-            <p className="text-lg text-white/90 max-w-xl mb-10 leading-relaxed font-roboto">
+            <p className="text-lg text-white/90 max-w-xl mb-10 leading-relaxed font-outfit">
               Connect with your community. Donate products, contribute cash,
               or bid on items to support those in need.
             </p>
@@ -526,12 +550,6 @@ function Dashboard() {
                 Get Started
                 <ArrowRight className="w-5 h-5" />
               </button>
-              <button
-                onClick={() => navigate("/how-it-works")}
-                className="border border-white/30 bg-white/10 backdrop-blur-sm text-white px-8 py-3.5 rounded-xl font-semibold hover:bg-white/20 transition-all flex items-center justify-center shadow-lg"
-              >
-                Learn More
-              </button>
             </div>
           </div>
         </div>
@@ -541,7 +559,10 @@ function Dashboard() {
         {/* Action Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 px-2">
           {/* Request Donation Card */}
-          <div className="group relative bg-white rounded-[2rem] p-6 transition-all duration-500 hover:-translate-y-2 border border-blue-50/50 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col h-full">
+          <div
+            onClick={handleRequestClick}
+            className="group relative bg-white rounded-[2rem] p-6 transition-all duration-500 hover:-translate-y-2 border border-blue-50/50 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col h-full cursor-pointer hover:shadow-2xl hover:border-[#124074]/20"
+          >
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
             <div className="relative mb-3">
@@ -549,25 +570,25 @@ function Dashboard() {
             </div>
 
             <div className="relative flex-grow">
-              <h3 className="text-2xl font-bold font-roboto text-[#124074] mb-3 tracking-tight">Need Help?</h3>
+              <h3 className="text-2xl font-bold font-outfit text-[#124074] mb-3 tracking-tight">Need Help?</h3>
               <p className="text-[#124074]/60 leading-relaxed font-medium mb-5">
                 Submit a request for assistance or essential products smoothly and securely.
               </p>
             </div>
 
-            <button
-              onClick={() => navigate("/request-donation")}
-              className="group relative py-2 mt-auto flex w-max items-center justify-start gap-3"
-            >
+            <div className="group relative py-2 mt-auto flex w-max items-center justify-start gap-3">
               <span className="font-bold text-xl text-[#124074] transition-transform duration-300 group-hover:translate-x-1">
                 Request Now
               </span>
               <ArrowRight className="w-5 h-5 text-[#124074] transition-transform duration-300 group-hover:translate-x-2" />
-            </button>
+            </div>
           </div>
 
           {/* Make Donation Card */}
-          <div className="group relative bg-white rounded-[2rem] p-6 transition-all duration-500 hover:-translate-y-2 border border-blue-50/50 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col h-full">
+          <div
+            onClick={handleDonateClick}
+            className="group relative bg-white rounded-[2rem] p-6 transition-all duration-500 hover:-translate-y-2 border border-blue-50/50 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col h-full cursor-pointer hover:shadow-2xl hover:border-[#124074]/20"
+          >
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
             <div className="relative mb-3">
@@ -575,25 +596,25 @@ function Dashboard() {
             </div>
 
             <div className="relative flex-grow">
-              <h3 className="text-2xl font-bold font-roboto text-[#124074] mb-3 tracking-tight">Support Now</h3>
+              <h3 className="text-2xl font-bold font-outfit text-[#124074] mb-3 tracking-tight">Support Now</h3>
               <p className="text-[#124074]/60 leading-relaxed font-medium mb-5">
                 Make an impact by donating cash or sharing products with people who need them.
               </p>
             </div>
 
-            <button
-              onClick={() => navigate("/donate")}
-              className="group relative py-2 mt-auto flex w-max items-center justify-start gap-3"
-            >
+            <div className="group relative py-2 mt-auto flex w-max items-center justify-start gap-3">
               <span className="font-bold text-xl text-[#124074] transition-transform duration-300 group-hover:translate-x-1">
                 Donate Now
               </span>
               <ArrowRight className="w-5 h-5 text-[#124074] transition-transform duration-300 group-hover:translate-x-2" />
-            </button>
+            </div>
           </div>
 
           {/* Browse Products Card */}
-          <div className="group relative bg-white rounded-[2rem] p-6 transition-all duration-500 hover:-translate-y-2 border border-blue-50/50 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col h-full">
+          <div
+            onClick={() => navigate("/browse-products")}
+            className="group relative bg-white rounded-[2rem] p-6 transition-all duration-500 hover:-translate-y-2 border border-blue-50/50 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col h-full cursor-pointer hover:shadow-2xl hover:border-[#124074]/20"
+          >
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
             <div className="relative mb-3">
@@ -601,25 +622,25 @@ function Dashboard() {
             </div>
 
             <div className="relative flex-grow">
-              <h3 className="text-2xl font-bold font-roboto text-[#124074] mb-3 tracking-tight">Explore Items</h3>
+              <h3 className="text-2xl font-bold font-outfit text-[#124074] mb-3 tracking-tight">Explore Items</h3>
               <p className="text-[#124074]/60 leading-relaxed font-medium mb-5">
                 Browse through available products and request the ones that could help you.
               </p>
             </div>
 
-            <button
-              onClick={() => navigate("/browse")}
-              className="group relative py-2 mt-auto flex w-max items-center justify-start gap-3"
-            >
+            <div className="group relative py-2 mt-auto flex w-max items-center justify-start gap-3">
               <span className="font-bold text-xl text-[#124074] transition-transform duration-300 group-hover:translate-x-1">
                 Browse Items
               </span>
               <ArrowRight className="w-5 h-5 text-[#124074] transition-transform duration-300 group-hover:translate-x-2" />
-            </button>
+            </div>
           </div>
 
           {/* Live Bidding Card */}
-          <div className="group relative bg-white rounded-[2rem] p-6 transition-all duration-500 hover:-translate-y-2 border border-blue-50/50 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col h-full">
+          <div
+            onClick={() => navigate("/bidding-gallery")}
+            className="group relative bg-white rounded-[2rem] p-6 transition-all duration-500 hover:-translate-y-2 border border-blue-50/50 shadow-xl shadow-blue-900/5 overflow-hidden flex flex-col h-full cursor-pointer hover:shadow-2xl hover:border-[#124074]/20"
+          >
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
             <div className="relative mb-3">
@@ -627,36 +648,33 @@ function Dashboard() {
             </div>
 
             <div className="relative flex-grow">
-              <h3 className="text-2xl font-bold font-roboto text-[#124074] mb-3 tracking-tight">Live Auctions</h3>
+              <h3 className="text-2xl font-bold font-outfit text-[#124074] mb-3 tracking-tight">Live Auctions</h3>
               <p className="text-[#124074]/60 leading-relaxed font-medium mb-5">
                 Participate in real-time bidding for unique items and support charitable causes.
               </p>
             </div>
 
-            <button
-              onClick={() => navigate("/bidding-gallery")}
-              className="group relative py-2 mt-auto flex w-max items-center justify-start gap-3"
-            >
+            <div className="group relative py-2 mt-auto flex w-max items-center justify-start gap-3">
               <span className="font-bold text-xl text-[#124074] transition-transform duration-300 group-hover:translate-x-1">
                 View Bidding
               </span>
               <ArrowRight className="w-5 h-5 text-[#124074] transition-transform duration-300 group-hover:translate-x-2" />
-            </button>
+            </div>
           </div>
         </div>
 
         {/* History & Statistics Section */}
         <div id="history-section" className="card bg-white">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-            <h2 className="text-2xl font-bold font-roboto text-gray-900">Your History & Statistics</h2>
+            <h2 className="text-2xl font-bold font-outfit text-gray-900">Your History & Statistics</h2>
           </div>
 
           <div className="flex gap-8 border-b border-gray-200">
             <button
               onClick={() => setHistoryTab("stats")}
               className={`pb-4 px-2 flex items-center gap-2 text-base font-medium transition-colors border-b-2 -mb-px ${historyTab === "stats"
-                  ? "text-[#1db5f4] border-[#1db5f4]"
-                  : "text-slate-600 border-transparent hover:text-slate-900 hover:border-gray-300"
+                ? "text-[#1db5f4] border-[#1db5f4]"
+                : "text-slate-600 border-transparent hover:text-slate-900 hover:border-gray-300"
                 }`}
             >
               <TrendingUp className="w-5 h-5" />
@@ -665,8 +683,8 @@ function Dashboard() {
             <button
               onClick={() => setHistoryTab("donations")}
               className={`pb-4 px-2 flex items-center gap-2 text-base font-medium transition-colors border-b-2 -mb-px ${historyTab === "donations"
-                  ? "text-[#1db5f4] border-[#1db5f4]"
-                  : "text-slate-600 border-transparent hover:text-slate-900 hover:border-gray-300"
+                ? "text-[#1db5f4] border-[#1db5f4]"
+                : "text-slate-600 border-transparent hover:text-slate-900 hover:border-gray-300"
                 }`}
             >
               <Heart className="w-5 h-5" />
@@ -675,8 +693,8 @@ function Dashboard() {
             <button
               onClick={() => setHistoryTab("requests")}
               className={`pb-4 px-2 flex items-center gap-2 text-base font-medium transition-colors border-b-2 -mb-px ${historyTab === "requests"
-                  ? "text-[#1db5f4] border-[#1db5f4]"
-                  : "text-slate-600 border-transparent hover:text-slate-900 hover:border-gray-300"
+                ? "text-[#1db5f4] border-[#1db5f4]"
+                : "text-slate-600 border-transparent hover:text-slate-900 hover:border-gray-300"
                 }`}
             >
               <Package className="w-5 h-5" />
@@ -689,7 +707,7 @@ function Dashboard() {
               <div className="space-y-8">
                 {/* Overview Section */}
                 <div>
-                  <h3 className="text-xl font-bold font-poppins text-gray-900 mb-6">Overview</h3>
+                  <h3 className="text-xl font-bold font-outfit text-gray-900 mb-6">Overview</h3>
                   <div className="grid md:grid-cols-3 gap-6">
                     <div className="card">
                       <div className="flex items-center gap-4">
@@ -697,8 +715,8 @@ function Dashboard() {
                           <Heart className="w-6 h-6 text-primary-600" fill="currentColor" />
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 font-medium mb-1">Total Donations</p>
-                          <p className="text-3xl font-bold text-gray-900 font-poppins">{stats.totalDonations}</p>
+                          <p className="text-sm text-gray-900 font-medium mb-1">Total Donations</p>
+                          <p className="text-3xl font-bold text-gray-900 font-outfit">{stats.totalDonations}</p>
                           <p className="text-xs text-gray-500">Cash + Products</p>
                         </div>
                       </div>
@@ -709,8 +727,8 @@ function Dashboard() {
                           <CheckCircle className="w-6 h-6 text-primary-600" />
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 font-medium mb-1">Total Requests</p>
-                          <p className="text-3xl font-bold text-gray-900 font-poppins">{stats.totalRequests}</p>
+                          <p className="text-sm text-gray-900 font-medium mb-1">Total Requests</p>
+                          <p className="text-3xl font-bold text-gray-900 font-outfit">{stats.totalRequests}</p>
                           <p className="text-xs text-gray-500">Cash + Products</p>
                         </div>
                       </div>
@@ -721,8 +739,8 @@ function Dashboard() {
                           <DollarSign className="w-6 h-6 text-primary-600" />
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 font-medium mb-1">Cash Donated</p>
-                          <p className="text-2xl font-bold text-gray-900 font-poppins">PKR {stats.totalDonationAmount.toLocaleString()}</p>
+                          <p className="text-sm text-gray-900 font-medium mb-1">Cash Donated</p>
+                          <p className="text-2xl font-bold text-gray-900 font-outfit">PKR {stats.totalDonationAmount.toLocaleString()}</p>
                           <p className="text-xs text-gray-500">Approved only</p>
                         </div>
                       </div>
@@ -732,30 +750,37 @@ function Dashboard() {
 
                 {/* Donations Breakdown */}
                 <div>
-                  <h3 className="text-xl font-bold font-poppins text-gray-900 mb-6">Donations Breakdown</h3>
+                  <h3 className="text-xl font-bold font-outfit text-gray-900 mb-6">Donations Breakdown</h3>
                   <div className="grid md:grid-cols-2 gap-6">
                     {/* Cash Donations */}
-                    <div className="card">
+                    <div
+                      className="card cursor-pointer hover:shadow-md transition-all hover:-translate-y-1"
+                      onClick={() => {
+                        setHistoryTab("donations");
+                        setDonationFilter("cash");
+                        window.scrollTo({ top: document.querySelector('#history-section')?.offsetTop - 100, behavior: 'smooth' });
+                      }}
+                    >
                       <div className="flex items-center gap-4 mb-6">
                         <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
                           <DollarSign className="w-5 h-5 text-primary-600" />
                         </div>
                         <div>
-                          <h4 className="text-lg font-bold font-poppins text-gray-900">Cash Donations</h4>
+                          <h4 className="text-lg font-bold font-outfit text-gray-900">Cash Donations</h4>
                           <p className="text-sm text-gray-600">{stats.totalDonations - stats.totalProductDonations} Total</p>
                         </div>
                       </div>
                       <div className="space-y-3 mb-4">
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <span className="text-sm font-medium text-gray-700">Approved</span>
+                          <span className="text-sm font-medium text-gray-900">Approved</span>
                           <span className="text-lg font-bold text-gray-900">{stats.approvedDonations - stats.approvedProductDonations}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <span className="text-sm font-medium text-gray-700">Pending</span>
+                          <span className="text-sm font-medium text-gray-900">Pending</span>
                           <span className="text-lg font-bold text-gray-900">{stats.pendingDonations - stats.pendingProductDonations}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <span className="text-sm font-medium text-gray-700">Rejected</span>
+                          <span className="text-sm font-medium text-gray-900">Rejected</span>
                           <span className="text-lg font-bold text-gray-900">{stats.rejectedDonations - stats.rejectedProductDonations}</span>
                         </div>
                       </div>
@@ -768,13 +793,20 @@ function Dashboard() {
                     </div>
 
                     {/* Product Donations */}
-                    <div className="card">
+                    <div
+                      className="card cursor-pointer hover:shadow-md transition-all hover:-translate-y-1"
+                      onClick={() => {
+                        setHistoryTab("donations");
+                        setDonationFilter("product");
+                        window.scrollTo({ top: document.querySelector('#history-section')?.offsetTop - 100, behavior: 'smooth' });
+                      }}
+                    >
                       <div className="flex items-center gap-4 mb-6">
                         <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
                           <Package className="w-5 h-5 text-primary-600" />
                         </div>
                         <div>
-                          <h4 className="text-lg font-bold font-poppins text-gray-900">Product Donations</h4>
+                          <h4 className="text-lg font-bold font-outfit text-gray-900">Product Donations</h4>
                           <p className="text-sm text-gray-600">{stats.totalProductDonations} Total</p>
                         </div>
                       </div>
@@ -798,16 +830,23 @@ function Dashboard() {
 
                 {/* Requests Breakdown */}
                 <div>
-                  <h3 className="text-xl font-bold font-poppins text-gray-900 mb-6">Requests Breakdown</h3>
+                  <h3 className="text-xl font-bold font-outfit text-gray-900 mb-6">Requests Breakdown</h3>
                   <div className="grid md:grid-cols-2 gap-6">
                     {/* Cash Requests */}
-                    <div className="card">
+                    <div
+                      className="card cursor-pointer hover:shadow-md transition-all hover:-translate-y-1"
+                      onClick={() => {
+                        setHistoryTab("requests");
+                        setRequestFilter("cash");
+                        window.scrollTo({ top: document.querySelector('#history-section')?.offsetTop - 100, behavior: 'smooth' });
+                      }}
+                    >
                       <div className="flex items-center gap-4 mb-6">
                         <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
                           <DollarSign className="w-5 h-5 text-primary-600" />
                         </div>
                         <div>
-                          <h4 className="text-lg font-bold font-poppins text-gray-900">Cash Requests</h4>
+                          <h4 className="text-lg font-bold font-outfit text-gray-900">Cash Requests</h4>
                           <p className="text-sm text-gray-600">{stats.totalRequests - stats.totalProductRequests} Total</p>
                         </div>
                       </div>
@@ -828,13 +867,20 @@ function Dashboard() {
                     </div>
 
                     {/* Product Requests */}
-                    <div className="card">
+                    <div
+                      className="card cursor-pointer hover:shadow-md transition-all hover:-translate-y-1"
+                      onClick={() => {
+                        setHistoryTab("requests");
+                        setRequestFilter("product");
+                        window.scrollTo({ top: document.querySelector('#history-section')?.offsetTop - 100, behavior: 'smooth' });
+                      }}
+                    >
                       <div className="flex items-center gap-4 mb-6">
                         <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
                           <Package className="w-5 h-5 text-primary-600" />
                         </div>
                         <div>
-                          <h4 className="text-lg font-bold font-poppins text-gray-900">Product Requests</h4>
+                          <h4 className="text-lg font-bold font-outfit text-gray-900">Product Requests</h4>
                           <p className="text-sm text-gray-600">{stats.totalProductRequests} Total</p>
                         </div>
                       </div>
@@ -870,10 +916,10 @@ function Dashboard() {
                       </div>
                       <input
                         type="text"
-                        placeholder="Search donations by name, category, or note..."
+                        placeholder="Search donations by name or category..."
                         value={donationSearch}
                         onChange={(e) => setDonationSearch(e.target.value)}
-                        className="block w-full pl-11 pr-10 py-3.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium text-gray-700"
+                        className="block w-full pl-11 pr-10 py-3.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-normal text-gray-700"
                       />
                       {donationSearch && (
                         <button
@@ -889,8 +935,8 @@ function Dashboard() {
                     <button
                       onClick={() => setShowDonationFilters(!showDonationFilters)}
                       className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all w-full md:w-auto shrink-0 shadow-sm ${showDonationFilters || donationFilter !== "all" || donationStatusFilter !== "all"
-                          ? "bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100"
-                          : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                        ? "bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100"
+                        : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                         }`}
                     >
                       <Filter className="w-5 h-5" />
@@ -905,7 +951,7 @@ function Dashboard() {
                   </div>
 
                   {/* Expandable Filters Section */}
-                  <div className={`transition-all duration-300 ease-in-out overflow-hidden ${showDonationFilters ? 'max-h-96 opacity-100 mt-4 pt-4 border-t border-gray-100' : 'max-h-0 opacity-0'}`}>
+                  <div className={`transition-all duration-300 ease-in-out ${showDonationFilters ? 'max-h-96 opacity-100 mt-4 pt-4 border-t border-gray-100 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden'}`}>
                     <div className="grid md:grid-cols-2 gap-5">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -990,7 +1036,7 @@ function Dashboard() {
                           <div className="flex-1">
                             <div className="flex items-start justify-between gap-4 mb-2">
                               <div>
-                                <h4 className="text-lg font-bold font-poppins text-gray-900">
+                                <h4 className="text-lg font-bold font-outfit text-gray-900">
                                   {donation.type === 'cash'
                                     ? `PKR ${parseFloat(donation.amount || 0).toLocaleString()}`
                                     : donation.product_name || 'Product Donation'}
@@ -1042,10 +1088,10 @@ function Dashboard() {
                       </div>
                       <input
                         type="text"
-                        placeholder="Search requests by name, category, or reason..."
+                        placeholder="Search requests by name or category..."
                         value={requestSearch}
                         onChange={(e) => setRequestSearch(e.target.value)}
-                        className="block w-full pl-11 pr-10 py-3.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium text-gray-700"
+                        className="block w-full pl-11 pr-10 py-3.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-normal text-gray-700"
                       />
                       {requestSearch && (
                         <button
@@ -1061,8 +1107,8 @@ function Dashboard() {
                     <button
                       onClick={() => setShowRequestFilters(!showRequestFilters)}
                       className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all w-full md:w-auto shrink-0 shadow-sm ${showRequestFilters || requestFilter !== "all" || requestStatusFilter !== "all"
-                          ? "bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100"
-                          : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                        ? "bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100"
+                        : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                         }`}
                     >
                       <Filter className="w-5 h-5" />
@@ -1077,7 +1123,7 @@ function Dashboard() {
                   </div>
 
                   {/* Expandable Filters Section */}
-                  <div className={`transition-all duration-300 ease-in-out overflow-hidden ${showRequestFilters ? 'max-h-96 opacity-100 mt-4 pt-4 border-t border-gray-100' : 'max-h-0 opacity-0'}`}>
+                  <div className={`transition-all duration-300 ease-in-out ${showRequestFilters ? 'max-h-96 opacity-100 mt-4 pt-4 border-t border-gray-100 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden'}`}>
                     <div className="grid md:grid-cols-2 gap-5">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1162,7 +1208,7 @@ function Dashboard() {
                           <div className="flex-1">
                             <div className="flex items-start justify-between gap-4 mb-2">
                               <div>
-                                <h4 className="text-lg font-bold font-poppins text-gray-900">
+                                <h4 className="text-lg font-bold font-outfit text-gray-900">
                                   {request.type === 'cash'
                                     ? `PKR ${parseFloat(request.amount || 0).toLocaleString()}`
                                     : request.product_name || 'Product Request'}
@@ -1204,6 +1250,50 @@ function Dashboard() {
 
 
       </div>
+
+      {/* Verification Required Modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowVerificationModal(false)}></div>
+          <div className="relative bg-white w-full max-w-md p-8 rounded-[2rem] shadow-2xl animate-slide-up text-center">
+            <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+              <Shield className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Verification Required</h2>
+            <p className="text-slate-500 font-medium leading-relaxed mb-8">
+              To ensure the safety and trust of our community, you must verify your identity by uploading documents before you can request assistance.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowVerificationModal(false);
+                  setShowVerificationForm(true);
+                }}
+                className="w-full bg-[#124074] text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-[#103866] transition-colors shadow-lg shadow-blue-900/20"
+              >
+                Verify Now
+              </button>
+              <button
+                onClick={() => setShowVerificationModal(false)}
+                className="w-full bg-slate-50 text-slate-500 py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Verification Form Modal */}
+      <VerificationFormModal
+        isOpen={showVerificationForm}
+        onClose={() => setShowVerificationForm(false)}
+        onSuccess={() => {
+          setShowVerificationForm(false);
+          // Refresh user data or show a success message
+          window.location.reload();
+        }}
+      />
+
     </div>
   );
 }

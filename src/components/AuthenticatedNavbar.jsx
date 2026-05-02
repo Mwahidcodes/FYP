@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { Heart, Bell, User, LogOut, Gavel, Menu, X, RefreshCw, CheckCheck, ChevronDown, LayoutDashboard, HeartHandshake, PackageSearch, Settings, HandHeart, Gift, Package, CreditCard } from "lucide-react";
+import { Heart, Bell, User, LogOut, Gavel, Menu, X, RefreshCw, CheckCheck, Check, ChevronDown, LayoutDashboard, HeartHandshake, PackageSearch, Settings, HandHeart, Gift, Package, CreditCard } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import BankDetailsForm from "./BankDetailsForm";
 
@@ -94,7 +94,7 @@ function AuthenticatedNavbar() {
           .from("bank_details")
           .select("*")
           .eq("related_notification_id", notification.id)
-          .single();
+          .maybeSingle();
 
         if (data && !error) {
           submittedIds.add(notification.id.toString());
@@ -209,10 +209,10 @@ function AuthenticatedNavbar() {
 
   // Navigation links specific to logged-in users
   const navLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'My Donations', path: '/dashboard', tab: 'donations', icon: HeartHandshake },
-    { name: 'My Requests', path: '/dashboard', tab: 'requests', icon: PackageSearch },
-    { name: 'Live Bidding', path: '/bidding-gallery', icon: Gavel },
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'My Donations', path: '/dashboard', tab: 'donations' },
+    { name: 'My Requests', path: '/dashboard', tab: 'requests' },
+    { name: 'Live Bidding', path: '/bidding-gallery' },
   ];
 
   const isActive = (path, tab) => {
@@ -234,8 +234,11 @@ function AuthenticatedNavbar() {
         setTimeout(() => {
           const historySection = document.getElementById('history-section');
           if (historySection) {
-            historySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            historySection.scrollIntoView({ behavior: 'auto', block: 'start' });
           }
+          // Also reset internal containers if any
+          const scrollableContainers = document.querySelectorAll('.overflow-y-auto, .overflow-auto, .overflow-y-scroll');
+          scrollableContainers.forEach(container => container.scrollTo(0, 0));
         }, 100);
       } else {
         // Navigate to the tab
@@ -246,7 +249,10 @@ function AuthenticatedNavbar() {
       e.preventDefault();
       navigate('/dashboard');
       setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        // Also reset internal containers
+        const scrollableContainers = document.querySelectorAll('.overflow-y-auto, .overflow-auto, .overflow-y-scroll');
+        scrollableContainers.forEach(container => container.scrollTo(0, 0));
       }, 100);
     }
   };
@@ -279,48 +285,131 @@ function AuthenticatedNavbar() {
         className={`fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-white shadow-2xl border-r border-gray-200 z-[70] transform transition-transform duration-300 ease-out ${sideMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
       >
-        <div className="p-5 border-b border-gray-100 bg-primary-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Share4Good Logo" className="w-10 h-10 object-contain" />
+        <div className="flex flex-col h-full">
+          {/* Header - Minimalist White */}
+          <div className="relative p-6 bg-white border-b border-gray-100">
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm">
+                  <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black font-outfit text-gray-900 tracking-tight leading-none">
+                    Share<span className="text-primary-600">4</span>Good
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setSideMenuOpen(false)}
+                className="p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-all duration-300 border border-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Menu Content */}
+          <div className="flex-1 overflow-y-auto px-4 py-6 no-scrollbar">
+            <div className="space-y-6">
+              {/* Main Actions Section */}
               <div>
-                <h3 className="text-lg font-bold font-poppins text-gray-900">
-                  Share<span className="text-primary-500">4</span>Good
-                </h3>
+                <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">Quick Actions</p>
+                <div className="space-y-4">
+                  {quickActionLinks.map((item, index) => {
+                    const Icon = item.icon;
+                    // Sophisticated color palette
+                    const themeColors = [
+                      { bg: 'bg-rose-50/50', icon: 'text-rose-500', border: 'border-rose-100', glow: 'shadow-rose-100' },
+                      { bg: 'bg-amber-50/50', icon: 'text-amber-500', border: 'border-amber-100', glow: 'shadow-amber-100' },
+                      { bg: 'bg-blue-50/50', icon: 'text-blue-500', border: 'border-blue-100', glow: 'shadow-blue-100' },
+                      { bg: 'bg-indigo-50/50', icon: 'text-indigo-500', border: 'border-indigo-100', glow: 'shadow-indigo-100' }
+                    ];
+                    const theme = themeColors[index % themeColors.length];
+                    
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => {
+                          navigate(item.path);
+                          setSideMenuOpen(false);
+                        }}
+                        style={{ animationDelay: `${index * 80}ms` }}
+                        className="w-full flex items-center justify-between p-1.5 rounded-[22px] border border-gray-100 bg-white hover:bg-gray-50/50 transition-all duration-300 group shadow-sm hover:shadow-xl hover:-translate-y-0.5 animate-fade-in-right"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-14 h-14 rounded-[18px] flex items-center justify-center transition-all duration-500 border ${theme.border} ${theme.bg} group-hover:scale-110 group-hover:rotate-3 shadow-inner`}>
+                            <Icon className={`w-7 h-7 ${theme.icon} transition-transform duration-500`} strokeWidth={1} />
+                          </div>
+                          <div>
+                            <span className="block font-bold text-gray-900 font-outfit text-base group-hover:text-primary-600 transition-colors tracking-tight">{item.name}</span>
+                          </div>
+                        </div>
+                        <div className="pr-4 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                          <div className={`w-8 h-8 rounded-full ${theme.bg} border ${theme.border} flex items-center justify-center`}>
+                            <Icon className={`w-4 h-4 ${theme.icon}`} strokeWidth={2} />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Account Section */}
+              <div>
+                <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">Account</p>
+                <div className="space-y-1">
+                  {[
+                    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+                    { name: 'My Profile', icon: User, path: '/profile' },
+                    { name: 'Settings', icon: Settings, path: '/profile?tab=settings' },
+                  ].map((link, index) => {
+                    const Icon = link.icon;
+                    return (
+                      <button
+                        key={link.path}
+                        onClick={() => {
+                          navigate(link.path);
+                          setSideMenuOpen(false);
+                        }}
+                        style={{ animationDelay: `${(quickActionLinks.length + index) * 50}ms` }}
+                        className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-gray-600 hover:text-primary-600 hover:bg-primary-50/50 transition-all duration-200 animate-fade-in-right group"
+                      >
+                        <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" strokeWidth={0.8} />
+                        <span className="text-sm font-semibold">{link.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-            <button
-              onClick={() => setSideMenuOpen(false)}
-              className="p-2 rounded-xl hover:bg-white/70 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
-        </div>
 
-        <div className="p-4 space-y-2">
-          {quickActionLinks.map((item) => {
-            const Icon = item.icon;
-            return (
+          {/* Footer User Profile */}
+          <div className="p-6 border-t border-gray-100 bg-gray-50/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-primary-600 flex items-center justify-center shadow-lg shadow-primary-200 border-2 border-white">
+                  <span className="text-white font-bold text-lg">{currentUser.name.charAt(0).toUpperCase()}</span>
+                </div>
+                <div className="max-w-[140px]">
+                  <p className="text-sm font-black text-gray-900 truncate font-outfit tracking-tight">{currentUser.name || 'User'}</p>
+                  <p className="text-[11px] text-gray-500 truncate font-medium">{currentUser.email || 'user@share4good.org'}</p>
+                </div>
+              </div>
               <button
-                key={item.path}
-                onClick={() => {
-                  navigate(item.path);
-                  setSideMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50 text-left text-gray-700 hover:text-primary-700 transition-all duration-200 group"
+                onClick={handleLogout}
+                className="p-3 rounded-xl bg-white hover:bg-red-50 text-gray-400 hover:text-red-600 transition-all duration-300 border border-gray-200 hover:border-red-100 shadow-sm"
+                title="Logout"
               >
-                <span className="w-10 h-10 rounded-lg bg-gray-100 group-hover:bg-primary-100 flex items-center justify-center transition-colors">
-                  <Icon className="w-5 h-5" />
-                </span>
-                <span className="font-semibold">{item.name}</span>
+                <LogOut className="w-5 h-5" />
               </button>
-            );
-          })}
+            </div>
+          </div>
         </div>
       </aside>
 
-      <nav className="bg-white/95 backdrop-blur-md shadow-soft sticky top-0 z-50">
+      <nav className="bg-white/95 backdrop-blur-md shadow-soft fixed top-0 left-0 right-0 z-50">
         <div className="w-full max-w-[1500px] mx-auto px-3 sm:px-5 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Menu & Logo Container */}
@@ -341,7 +430,7 @@ function AuthenticatedNavbar() {
               >
                 <img src="/logo.png" alt="Share4Good Logo" className="w-10 h-10 lg:w-12 lg:h-12 object-contain group-hover:scale-105 transition-all duration-300" />
                 <div className="flex flex-col">
-                  <span className="text-lg lg:text-xl font-bold font-poppins text-gray-900 leading-none">
+                  <span className="text-lg lg:text-xl font-bold font-outfit text-gray-900 leading-none">
                     Share<span className="text-primary-500">4</span>Good
                   </span>
                 </div>
@@ -362,7 +451,6 @@ function AuthenticatedNavbar() {
                       : 'text-gray-600 hover:bg-gray-50 hover:text-primary-600'
                       }`}
                   >
-                    <Icon className="w-4 h-4" />
                     {link.name}
                   </Link>
                 );
@@ -487,7 +575,6 @@ function AuthenticatedNavbar() {
                     }`}
                 >
                   <span className="flex items-center gap-2">
-                    <Icon className="w-4 h-4" />
                     {link.name}
                   </span>
                 </Link>
@@ -555,11 +642,16 @@ function AuthenticatedNavbar() {
           <div className="fixed top-20 right-4 w-96 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-card border border-gray-200 z-50 max-h-[calc(100vh-6rem)] flex flex-col animate-slide-up">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-bold font-poppins text-gray-900">
-                Notifications {unreadCount > 0 && (
-                  <span className="text-primary-600">({unreadCount} unread)</span>
+              <div className="flex flex-col">
+                <h3 className="text-lg font-bold font-outfit text-gray-900 leading-none mb-1">
+                  Notifications
+                </h3>
+                {unreadCount > 0 && (
+                  <span className="text-sm font-bold text-primary-600">
+                    {unreadCount} Unread
+                  </span>
                 )}
-              </h3>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -638,20 +730,20 @@ function AuthenticatedNavbar() {
                           } ${isRejected ? 'border-l-4 border-red-500' : ''} ${isPositive ? 'border-l-4 border-green-500' : ''} ${isBankDetailsRequest ? 'border-l-4 border-blue-500' : ''}`}
                       >
                         <div className="flex gap-3">
-                          <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${isBankDetailsRequest ? 'bg-blue-100 text-blue-600' :
-                              isPositive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                          <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center ${isBankDetailsRequest ? 'text-blue-600' :
+                            isPositive ? 'text-green-600' : 'text-red-600'
                             }`}>
                             {isBankDetailsRequest ? (
                               <CreditCard className="w-5 h-5" />
                             ) : isPositive ? (
-                              <span className="text-xl">✅</span>
+                              <Check className="w-6 h-6 stroke-[3]" />
                             ) : (
-                              <span className="text-xl">❌</span>
+                              <X className="w-6 h-6 stroke-[3]" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2 mb-1">
-                              <h4 className="font-semibold text-gray-900 font-poppins text-sm">
+                              <h4 className="font-semibold text-gray-900 font-outfit text-sm">
                                 {notification.title}
                               </h4>
                               {isUnread && (

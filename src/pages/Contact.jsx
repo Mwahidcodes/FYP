@@ -65,25 +65,11 @@ const Contact = () => {
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent-200 rounded-full blur-3xl opacity-20 -ml-32 -mb-32"></div>
                 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                    <div className="flex items-start mb-4">
-                        <button
-                            type="button"
-                            onClick={() => navigate("/")}
-                            className="w-10 h-10 border-2 border-gray-300 rounded-lg flex items-center justify-center hover:border-primary-500 hover:bg-primary-50 transition-all flex-shrink-0"
-                        >
-                            <ArrowLeft className="w-5 h-5 text-gray-600 group-hover:text-primary-600" />
-                        </button>
-                        
-                        <div className="text-center max-w-3xl mx-auto flex-1">
-                            <div className="inline-flex items-center gap-2 bg-primary-100 text-primary-700 px-4 py-1.5 rounded-full text-xs font-semibold mb-3 shadow-sm">
-                                <MessageSquare className="w-3 h-3" />
-                                <span>Get In Touch</span>
-                            </div>
-                            <h1 className="text-3xl md:text-4xl font-bold font-poppins text-gray-900 mb-2">Contact <span className="gradient-text">Us</span></h1>
+                    <div className="text-center max-w-3xl mx-auto">
+                        <h1 className="text-4xl md:text-6xl font-normal tracking-tight text-[#124074] mb-3">Contact <span className="font-black">Us</span></h1>
                             <p className="text-sm text-gray-600">Have questions or want to get involved? We'd love to hear from you.</p>
                         </div>
                     </div>
-                </div>
             </section>
 
             {/* Contact Section */}
@@ -97,7 +83,7 @@ const Contact = () => {
                     <div className="grid lg:grid-cols-2 gap-12">
                         {/* Contact Form */}
                         <div className="card">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-6 font-poppins">Send us a Message</h2>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-6 font-outfit">Send us a Message</h2>
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="grid md:grid-cols-2 gap-6">
                                     <div>
@@ -108,7 +94,7 @@ const Contact = () => {
                                             value={formData.name} 
                                             onChange={handleChange} 
                                             className="input-field" 
-                                            placeholder="John Doe" 
+                                            placeholder="Ahmed Khan" 
                                             required 
                                         />
                                     </div>
@@ -120,7 +106,7 @@ const Contact = () => {
                                             value={formData.email} 
                                             onChange={handleChange} 
                                             className="input-field" 
-                                            placeholder="john@example.com" 
+                                            placeholder="ahmed@example.com" 
                                             required 
                                         />
                                     </div>
@@ -166,7 +152,7 @@ const Contact = () => {
                         {/* Contact Info */}
                         <div className="space-y-6">
                             <div className="card bg-gradient-to-br from-primary-50 to-secondary-50">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6 font-poppins">Contact Information</h2>
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6 font-outfit">Contact Information</h2>
                                 <div className="space-y-6">
                                     {contactInfo.map((item, i) => (
                                         <div key={i} className="flex items-start gap-4">
@@ -182,14 +168,7 @@ const Contact = () => {
                                 </div>
                             </div>
 
-                            {/* Map Placeholder */}
-                            <div className="card h-64 bg-gray-200 flex items-center justify-center">
-                                <div className="text-center text-gray-500">
-                                    <MapPin className="w-12 h-12 mx-auto mb-2 text-primary-500" />
-                                    <p className="font-medium">Map Location</p>
-                                    <p className="text-sm">Interactive map will be displayed here</p>
-                                </div>
-                            </div>
+
                         </div>
                     </div>
                 </div>

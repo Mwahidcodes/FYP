@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 
 import { useNavigate, useLocation, Link } from "react-router-dom";
 
-import { Gavel, Clock, TrendingUp, Eye, Timer, Filter, X, ArrowLeft, DollarSign, Calendar, User, Package } from "lucide-react";
+import { Gavel, Clock, TrendingUp, Eye, Timer, Filter, X, ArrowLeft, Calendar, User, Package } from "lucide-react";
 
 
 
@@ -1077,7 +1077,7 @@ function BiddingPage() {
 
           <div className="flex flex-col items-center">
 
-            <span className="text-2xl font-bold text-accent-600 font-poppins">{timeRemaining.days}</span>
+            <span className="text-2xl font-bold text-accent-600 font-outfit">{timeRemaining.days}</span>
 
             <span className="text-xs text-gray-500 font-medium">Days</span>
 
@@ -1087,7 +1087,7 @@ function BiddingPage() {
 
         <div className="flex flex-col items-center">
 
-          <span className="text-2xl font-bold text-accent-600 font-poppins">{String(timeRemaining.hours).padStart(2, '0')}</span>
+          <span className="text-2xl font-bold text-accent-600 font-outfit">{String(timeRemaining.hours).padStart(2, '0')}</span>
 
           <span className="text-xs text-gray-500 font-medium">Hours</span>
 
@@ -1097,7 +1097,7 @@ function BiddingPage() {
 
         <div className="flex flex-col items-center">
 
-          <span className="text-2xl font-bold text-accent-600 font-poppins">{String(timeRemaining.minutes).padStart(2, '0')}</span>
+          <span className="text-2xl font-bold text-accent-600 font-outfit">{String(timeRemaining.minutes).padStart(2, '0')}</span>
 
           <span className="text-xs text-gray-500 font-medium">Minutes</span>
 
@@ -1107,7 +1107,7 @@ function BiddingPage() {
 
         <div className="flex flex-col items-center">
 
-          <span className="text-2xl font-bold text-accent-600 font-poppins">{String(timeRemaining.seconds).padStart(2, '0')}</span>
+          <span className="text-2xl font-bold text-accent-600 font-outfit">{String(timeRemaining.seconds).padStart(2, '0')}</span>
 
           <span className="text-xs text-gray-500 font-medium">Seconds</span>
 
@@ -1251,7 +1251,7 @@ function BiddingPage() {
 
             type="button"
 
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/request-donation")}
 
             className="w-10 h-10 border-2 border-gray-300 rounded-lg flex items-center justify-center hover:border-primary-500 hover:bg-primary-50 transition-all mb-4"
 
@@ -1319,7 +1319,7 @@ function BiddingPage() {
 
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-bold font-poppins text-gray-900 mb-4">Live <span className="gradient-text">Bidding</span></h1>
+          <h1 className="text-4xl md:text-5xl font-bold font-outfit text-gray-900 mb-4">Live <span className="gradient-text">Bidding</span></h1>
 
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">Bid on unique and antique items. All proceeds support our charitable causes.</p>
 
@@ -1327,198 +1327,75 @@ function BiddingPage() {
 
       </section>
 
-
-
       {/* Filters */}
-
-      <section className="py-8 bg-gray-50">
-
+      <section className="py-12 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4">
-
-          <div className="card bg-white shadow-sm border border-gray-100">
-
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-
-              <div className="flex items-center gap-3">
-
-                <div className="w-10 h-10 bg-accent-100 rounded-xl flex items-center justify-center">
-
-                  <Filter className="w-5 h-5 text-accent-600" />
-
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)] p-10">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-[#124074] shadow-sm">
+                  <Filter className="w-6 h-6" />
                 </div>
-
                 <div>
-
-                  <h3 className="text-lg font-semibold font-poppins text-gray-900">Filter & Sort</h3>
-
-                  <p className="text-sm text-gray-500">Refine your search</p>
-
+                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Filter & Sort</h3>
+                  <p className="text-sm text-slate-400 font-medium">Refine your search</p>
                 </div>
-
               </div>
 
-
-
-              {/* Results Count */}
-
-              <div className="flex items-center gap-2">
-
-                <span className="text-sm text-gray-600 font-medium">
-
-                  Showing <span className="text-accent-600 font-bold">{filteredProducts.length}</span> of <span className="text-gray-900 font-bold">{biddingProducts.length}</span> products
-
+              <div className="flex items-center gap-2 px-6 py-2.5 bg-slate-50 rounded-full border border-slate-100">
+                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                  Showing <span className="text-[#124074]">{filteredProducts.length}</span> of <span className="text-slate-900">{biddingProducts.length}</span> auctions
                 </span>
-
               </div>
-
             </div>
 
-
-
-            {/* Search Box */}
-
-            <div className="mb-6">
-
-              <div className="relative">
-
-                <input
-
-                  type="text"
-
-                  placeholder="Search by product name, description, category, or bidder..."
-
-                  value={searchTerm}
-
-                  onChange={(e) => setSearchTerm(e.target.value)}
-
-                  className="w-full px-4 py-3 pl-12 rounded-xl border-2 border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all"
-
-                />
-
-                <Eye className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-
-                {searchTerm && (
-
-                  <button
-
-                    onClick={() => setSearchTerm("")}
-
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-
-                  >
-
-                    <X className="w-5 h-5" />
-
-                  </button>
-
-                )}
-
-              </div>
-
-            </div>
-
-
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Status Filter */}
-
-              <div className="flex flex-col gap-2">
-
-                <label className="text-sm font-semibold font-poppins text-gray-700 flex items-center gap-2">
-
-                  <Clock className="w-4 h-4 text-accent-500" />
-
+              <div className="flex flex-col gap-3">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 ml-1">
+                  <Clock className="w-3.5 h-3.5" />
                   Status
-
                 </label>
-
                 <CustomDropdown
-
                   options={[
-
                     { value: "all", label: "All Status" },
-
-                    { value: "active", label: "🟢 Active" },
-
-                    { value: "upcoming", label: "⏰ Upcoming" }
-
+                    { value: "active", label: "Active" },
+                    { value: "upcoming", label: "Upcoming" }
                   ]}
-
                   value={statusFilter}
-
                   onChange={setStatusFilter}
-
                   placeholder="Select Status"
-
                 />
-
               </div>
-
-
 
               {/* Category Filter */}
-
-              <div className="flex flex-col gap-2">
-
-                <label className="text-sm font-semibold font-poppins text-gray-700 flex items-center gap-2">
-
-                  <Gavel className="w-4 h-4 text-accent-500" />
-
+              <div className="flex flex-col gap-3">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 ml-1">
+                  <Gavel className="w-3.5 h-3.5" />
                   Category
-
                 </label>
-
                 <CustomDropdown
-
                   options={[
-
                     { value: "all", label: "All Categories" },
-
                     { value: "Electronics", label: "Electronics" },
-
-                    { value: "Clothing", label: "Clothing" },
-
+                    { value: "Clothes", label: "Clothes" },
                     { value: "Furniture", label: "Furniture" },
-
-                    { value: "Books", label: "Books" },
-
                     { value: "Toys", label: "Toys" },
-
-                    { value: "Food Items", label: "Food Items" },
-
-                    { value: "Medical Supplies", label: "Medical Supplies" },
-
-                    { value: "Educational Materials", label: "Educational Materials" },
-
+                    { value: "Educational Material", label: "Educational Material" },
                     { value: "Other", label: "Other" }
-
                   ]}
-
                   value={categoryFilter}
-
                   onChange={setCategoryFilter}
-
                   placeholder="Select Category"
-
                 />
-
               </div>
 
-
-
               {/* Sort By */}
-
-              <div className="flex flex-col gap-2">
-
-                <label className="text-sm font-semibold font-poppins text-gray-700 flex items-center gap-2">
-
-                  <TrendingUp className="w-4 h-4 text-accent-500" />
-
+              <div className="flex flex-col gap-3">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 ml-1">
+                  <TrendingUp className="w-3.5 h-3.5" />
                   Sort By
-
                 </label>
-
                 <CustomDropdown
                   options={[
                     { value: "newest", label: "Newest First" },
@@ -1531,51 +1408,39 @@ function BiddingPage() {
                   onChange={setSortBy}
                   placeholder="Sort By"
                 />
-
               </div>
-
             </div>
 
-
-
-            {/* Clear Filters Button */}
-
-            {(searchTerm || statusFilter !== "all" || categoryFilter !== "all" || sortBy !== "newest") && (
-
-              <div className="mt-6 pt-6 border-t border-gray-200">
-
-                <button
-
-                  onClick={() => {
-
-                    setSearchTerm("");
-
-                    setStatusFilter("all");
-
-                    setCategoryFilter("all");
-
-                    setSortBy("newest");
-
-                  }}
-
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-100 hover:border-red-300 transition-all font-semibold text-sm font-poppins"
-
-                >
-
-                  <X className="w-4 h-4" />
-
-                  Clear All Filters
-
-                </button>
-
+            {/* Search Box & Clear */}
+            <div className="mt-10 pt-10 border-t border-slate-50 flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Search by product name, description..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-6 py-4 pl-14 rounded-2xl border border-slate-100 bg-slate-50/50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#124074]/10 focus:border-[#124074]/20 transition-all placeholder:text-slate-300"
+                />
+                <Eye className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
               </div>
 
-            )}
-
+              {(searchTerm || statusFilter !== "all" || categoryFilter !== "all" || sortBy !== "newest") && (
+                <button
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("all");
+                    setCategoryFilter("all");
+                    setSortBy("newest");
+                  }}
+                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all font-bold text-xs uppercase tracking-widest"
+                >
+                  <X className="w-4 h-4" />
+                  Reset Filters
+                </button>
+              )}
+            </div>
           </div>
-
         </div>
-
       </section>
 
 
@@ -1806,9 +1671,9 @@ function BiddingPage() {
 
                         className={`!py-2 !px-4 flex items-center gap-1 text-sm ${product.status === "active"
 
-                            ? "btn-accent"
+                          ? "btn-accent"
 
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
 
                           }`}
 
@@ -1872,7 +1737,7 @@ function BiddingPage() {
 
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
 
-              <h2 className="text-2xl font-bold font-poppins text-gray-900">Product Details</h2>
+              <h2 className="text-2xl font-bold font-outfit text-gray-900">Product Details</h2>
 
               <button
 
@@ -1932,7 +1797,7 @@ function BiddingPage() {
 
                     </span>
 
-                    <h3 className="text-2xl font-bold font-poppins text-gray-900 mb-4">
+                    <h3 className="text-2xl font-bold font-outfit text-gray-900 mb-4">
 
                       {selectedProduct.product_name || "Unnamed Product"}
 
@@ -1962,7 +1827,7 @@ function BiddingPage() {
 
                         <div className="flex items-center gap-2 text-gray-600">
 
-                          <DollarSign className="w-5 h-5" />
+                          <Tag className="w-5 h-5" />
 
                           <span className="font-medium">Starting Price</span>
 
@@ -2086,7 +1951,7 @@ function BiddingPage() {
 
                   {/* Bid History Toggle */}
 
-                   <button
+                  <button
 
                     onClick={() => setShowBidHistory(!showBidHistory)}
 
@@ -2108,7 +1973,7 @@ function BiddingPage() {
 
                     <div className="card bg-gray-50">
 
-                      <h4 className="font-semibold font-poppins text-gray-900 mb-4">Recent Bids</h4>
+                      <h4 className="font-semibold font-outfit text-gray-900 mb-4">Recent Bids</h4>
 
                       {bidHistory.length === 0 ? (
 
@@ -2178,9 +2043,9 @@ function BiddingPage() {
 
                 className={`flex-1 ${selectedProduct.status === "active"
 
-                    ? "btn-accent"
+                  ? "btn-accent"
 
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
 
                   }`}
 
@@ -2221,11 +2086,8 @@ function BiddingPage() {
         >
 
           <div
-
-            className="bg-white rounded-2xl shadow-card max-w-lg w-full animate-slide-up"
-
+            className="bg-white rounded-2xl shadow-card max-w-lg w-full max-h-[90vh] overflow-y-auto animate-slide-up"
             onClick={(e) => e.stopPropagation()}
-
           >
 
             {/* Header */}
@@ -2242,7 +2104,7 @@ function BiddingPage() {
 
                 <div>
 
-                  <h2 className="text-2xl font-bold font-poppins text-gray-900">Place Your Bid</h2>
+                  <h2 className="text-2xl font-bold font-outfit text-gray-900">Place Your Bid</h2>
 
                   <p className="text-sm text-gray-500">{selectedProduct.product_name || "Unnamed Product"}</p>
 
@@ -2296,7 +2158,7 @@ function BiddingPage() {
 
                 <div className="card bg-gray-50 mb-6">
 
-                  <h4 className="font-semibold font-poppins text-gray-900 mb-4">Recent Bids</h4>
+                  <h4 className="font-semibold font-outfit text-gray-900 mb-4">Recent Bids</h4>
 
                   {bidHistory.length === 0 ? (
 
@@ -2346,7 +2208,7 @@ function BiddingPage() {
 
                     <div className="flex items-center gap-2 text-gray-600">
 
-                      <DollarSign className="w-5 h-5" />
+                      <Tag className="w-5 h-5" />
 
                       <span className="font-medium">Starting Price</span>
 
@@ -2388,124 +2250,68 @@ function BiddingPage() {
 
 
 
-              {/* Bid Form */}
+              <form onSubmit={handlePlaceBid} className="flex flex-col h-full overflow-hidden">
+                <div className="flex-1 overflow-y-auto pr-1 space-y-6 mb-6">
+                  <div>
+                    <label htmlFor="bid-amount" className="label flex items-center gap-2">
+                      Your Bid Amount (PKR) <span className="text-red-500">*</span>
+                    </label>
 
-              <form onSubmit={handlePlaceBid} className="space-y-6">
+                    <input
+                      type="number"
+                      id="bid-amount"
+                      min={parseFloat(selectedProduct.current_highest_bid || selectedProduct.starting_price) + 1}
+                      step="0.01"
+                      value={bidAmount}
+                      onChange={(e) => setBidAmount(e.target.value)}
+                      placeholder={`Enter amount higher than ${formatCurrency(parseFloat(selectedProduct.current_highest_bid || selectedProduct.starting_price))}`}
+                      required
+                      className="input-field"
+                    />
 
-                <div>
-
-                  <label htmlFor="bid-amount" className="label flex items-center gap-2">
-
-                    <DollarSign className="w-4 h-4" />
-
-                    Your Bid Amount (PKR) <span className="text-red-500">*</span>
-
-                  </label>
-
-                  <input
-
-                    type="number"
-
-                    id="bid-amount"
-
-                    min={parseFloat(selectedProduct.current_highest_bid || selectedProduct.starting_price) + 1}
-
-                    step="0.01"
-
-                    value={bidAmount}
-
-                    onChange={(e) => setBidAmount(e.target.value)}
-
-                    placeholder={`Enter amount higher than ${formatCurrency(parseFloat(selectedProduct.current_highest_bid || selectedProduct.starting_price))}`}
-
-                    required
-
-                    className="input-field"
-
-                  />
-
-                  <small className="text-gray-500 text-sm mt-2 block">
-
-                    Your bid must be higher than the current highest bid.
-
-                  </small>
-
-                </div>
-
-
-
-                {feedback && (
-
-                  <div
-
-                    className={`p-4 rounded-xl flex items-center gap-3 ${feedback.type === "success"
-
-                        ? "bg-green-50 text-green-700 border border-green-200"
-
-                        : "bg-red-50 text-red-700 border border-red-200"
-
-                      }`}
-
-                  >
-
-                    <span className="text-xl">
-
-                      {feedback.type === "success" ? "✅" : "❌"}
-
-                    </span>
-
-                    <span className="font-medium">{feedback.message}</span>
-
+                    <small className="text-gray-500 text-sm mt-2 block">
+                      Your bid must be higher than the current highest bid.
+                    </small>
                   </div>
 
-                )}
-
-
-
-                <div className="flex gap-4 pt-4">
-
-                  <button
-
-                    type="button"
-
-                    onClick={closeBidModal}
-
-                    disabled={bidLoading}
-
-                    className="btn-secondary flex-1"
-
-                  >
-
-                    Cancel
-
-                  </button>
-
-                  <button
-
-                    type="submit"
-
-                    disabled={bidLoading || !bidAmount.trim()}
-
-                    className={`btn-accent flex-1 ${bidLoading ? 'btn-loading' : ''}`}
-
-                  >
-
-                    {bidLoading ? "Placing Bid..." : (
-
-                      <span className="flex items-center justify-center gap-2">
-
-                        <Gavel className="w-5 h-5" />
-
-                        Place Bid
-
+                  {feedback && (
+                    <div
+                      className={`p-4 rounded-xl flex items-center gap-3 ${feedback.type === "success"
+                        ? "bg-green-50 text-green-700 border border-green-200"
+                        : "bg-red-50 text-red-700 border border-red-200"
+                        }`}
+                    >
+                      <span className="text-xl">
+                        {feedback.type === "success" ? "✅" : "❌"}
                       </span>
-
-                    )}
-
-                  </button>
-
+                      <span className="font-medium">{feedback.message}</span>
+                    </div>
+                  )}
                 </div>
 
+                <div className="flex gap-4 pt-4 border-t border-gray-100 bg-white mt-auto">
+                  <button
+                    type="button"
+                    onClick={closeBidModal}
+                    disabled={bidLoading || feedback?.type === "success"}
+                    className="btn-secondary flex-1"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={bidLoading || !bidAmount.trim() || feedback?.type === "success"}
+                    className={`btn-accent flex-1 ${bidLoading ? 'btn-loading' : ''}`}
+                  >
+                    {bidLoading ? "Placing Bid..." : (
+                      <span className="flex items-center justify-center gap-2">
+                        <Gavel className="w-5 h-5" />
+                        Place Bid
+                      </span>
+                    )}
+                  </button>
+                </div>
               </form>
 
             </div>

@@ -1,88 +1,150 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { DollarSign, ArrowLeft, Upload, FileText, CheckCircle, AlertCircle, CreditCard } from "lucide-react";
+import { ArrowLeft, FileText, Upload, CheckCircle, AlertCircle, MessageCircle, Landmark, User, CreditCard, Phone, ArrowRight, Smartphone, RefreshCw } from "lucide-react";
 import AuthenticatedNavbar from "../components/AuthenticatedNavbar";
 import { supabase } from "../supabaseClient";
 import CustomDropdown from "../components/CustomDropdown";
 
 function CashRequestForm() {
   const navigate = useNavigate();
-
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     amount: "",
     category: "",
-    otherCategory: "",
     description: "",
-    proofOfPurpose: null,
-    paymentMethod: "bank", // 'bank' or 'easypaisa'
+    paymentMethod: "bank",
+    bankName: "",
     accountName: "",
     accountNumber: "",
-    bankName: "",
     phoneNumber: "",
   });
-
-  const [fileName, setFileName] = useState("");
+  const [proof, setProof] = useState(null);
+  const [proofName, setProofName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState(null);
+  const [feedback, setFeedback] = React.useState(null);
+  const [hasPending, setHasPending] = React.useState(false);
 
-  const categories = [
-    "Medical Treatment",
-    "Education",
-    "Food & Groceries",
-    "House Rent",
-    "Utility Bills",
-    "Emergency Relief",
-    "Other",
-  ];
+  React.useEffect(() => {
+    checkExistingPending();
+  }, []);
 
-  const processSteps = [
-    { title: "Need Details", desc: "Specify amount and purpose" },
-    { title: "Proof Upload", desc: "Share relevant documentation" },
-    { title: "Payment Info", desc: "How you want to receive funds" },
-    { title: "Verification", desc: "Wait for admin to verify needs" },
-  ];
+  const checkExistingPending = async () => {
+    try {
+      const user = localStorage.getItem("currentUser");
+      if (!user) {
+        navigate("/");
+        return;
+      }
+      const userData = JSON.parse(user);
+
+      if (!userData.is_verified && userData.role !== 'admin') {
+        navigate("/request-donation");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("cash_requests")
+        .select("id")
+        .eq("user_id", userData.id)
+        .eq("status", "pending")
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setHasPending(true);
+        setFeedback({ type: "warning", message: "Your request is already in pending." });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const categories = ["Medical Assistance", "Education Fees", "Utility Bills", "Marriage", "Debt Relief", "Other"];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === "accountName") { if (!/^[a-zA-Z\s]*$/.test(value)) return; }
-    if (name === "accountNumber") { if (!/^\d*$/.test(value)) return; if (value.length > 14) return; }
-    if (name === "bankName") { if (!/^[a-zA-Z\s]*$/.test(value)) return; }
-    if (name === "phoneNumber") { if (!/^\d*$/.test(value)) return; if (value.length > 11) return; }
 
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-  };
+    // Validation for Phone Number (only numbers, max 11)
+    if (name === "phoneNumber") {
+      const cleaned = value.replace(/\D/g, "");
+      if (cleaned.length > 11) return;
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
+      return;
+    }
 
-  const handleNextStep = (e) => {
-    e.preventDefault();
-    if (!formData.amount || !formData.category || !formData.description || !formData.proofOfPurpose) {
-      setFeedback({ type: "error", message: "Please fill all mandatory fields and upload proof." });
+    // Validation for Account Number (only numbers, max 14)
+    if (name === "accountNumber") {
+      const cleaned = value.replace(/\D/g, "");
+      if (cleaned.length > 14) return;
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
       return;
     }
-    if (formData.category === "Other" && !formData.otherCategory) {
-      setFeedback({ type: "error", message: "Please specify your category." });
+
+    // Validation for Bank Name (no numbers)
+    if (name === "bankName") {
+      const cleaned = value.replace(/[0-9]/g, "");
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
       return;
     }
-    if (Number(formData.amount) > 50000) {
-      setFeedback({ type: "error", message: "You cannot request more than 50,000." });
+
+    // Validation for Account Title (no numbers)
+    if (name === "accountName") {
+      const cleaned = value.replace(/[0-9]/g, "");
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
       return;
     }
-    setFeedback(null);
-    setStep(2);
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData({
-        ...formData,
-        proofOfPurpose: file,
-      });
-      setFileName(file.name);
+      const fileExt = file.name.split('.').pop().toLowerCase();
+      const allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
+      const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+      
+      if (!allowedExts.includes(fileExt) || (file.type && !allowedTypes.includes(file.type))) {
+        setFeedback({ type: "error", message: "Only PDF, JPG, and PNG files are allowed." });
+        e.target.value = ''; 
+        setProof(null);
+        setProofName("");
+        return;
+      }
+      setProof(file);
+      setProofName(file.name);
+      setFeedback(null);
     }
+  };
+
+  const handleNextStep = (e) => {
+    e.preventDefault();
+    
+    if (!formData.amount || !formData.category || !formData.description) {
+      setFeedback({ type: "error", message: "Please fill all required fields." });
+      return;
+    }
+
+    if (parseFloat(formData.amount) > 50000) {
+      setFeedback({ type: "error", message: "Request limit is 50000" });
+      return;
+    }
+
+    if (!proof) {
+      setFeedback({ type: "error", message: "Please upload document (Supporting Proof)." });
+      return;
+    }
+
+    if (proof) {
+      const fileExt = proof.name.split('.').pop().toLowerCase();
+      const allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
+      if (!allowedExts.includes(fileExt)) {
+        setFeedback({ type: "error", message: "Invalid file type. Only PDF, JPG, and PNG are allowed." });
+        return;
+      }
+    }
+
+    setFeedback(null);
+    setStep(2);
   };
 
   const handleSubmit = async (e) => {
@@ -91,367 +153,360 @@ function CashRequestForm() {
     setLoading(true);
     setFeedback(null);
 
-    const user = localStorage.getItem("currentUser");
-    if (!user) {
-      setFeedback({ type: "error", message: "Please login first to submit a request." });
-      navigate("/login");
-      setLoading(false);
-      return;
-    }
-
-    const userData = JSON.parse(user);
-    if (!userData.is_verified) {
-      setFeedback({ type: "error", message: "Your account must be verified to make requests." });
-      setLoading(false);
-      return;
-    }
-
-    if (formData.paymentMethod === "bank") {
-      if (!formData.accountName || !formData.accountNumber || !formData.bankName) {
-        setFeedback({ type: "error", message: "Please fill all bank details." });
-        setLoading(false);
-        return;
-      }
-      if (formData.accountNumber.length !== 14) {
-        setFeedback({ type: "error", message: "Invalid account number. It must be exactly 14 digits." });
-        setLoading(false);
-        return;
-      }
-    } else {
-      if (!formData.phoneNumber) {
-        setFeedback({ type: "error", message: "Please enter your EasyPaisa phone number." });
-        setLoading(false);
-        return;
-      }
-      if (formData.phoneNumber.length !== 11 || !formData.phoneNumber.startsWith("03")) {
-        setFeedback({ type: "error", message: "Invalid phone number." });
-        setLoading(false);
-        return;
-      }
-    }
-
     try {
-      const { data: pending } = await supabase
-        .from("cash_requests")
-        .select("status")
-        .eq("user_id", userData.id)
-        .eq("status", "pending");
+      const user = localStorage.getItem("currentUser");
+      if (!user) throw new Error("Please login first.");
+      const userData = JSON.parse(user);
 
-      if (pending && pending.length > 0) {
-        setFeedback({ type: "warning", message: "cash request already in pending" });
-        setLoading(false);
-        return;
+      if (!userData.is_verified && userData.role !== 'admin') {
+        throw new Error("Your account must be verified to request cash assistance.");
+      }
+
+      // Final validation checks
+      if (formData.paymentMethod === "mobile") {
+        if (!formData.phoneNumber.startsWith("03")) {
+          throw new Error("Phone number must start with 03.");
+        }
+        if (formData.phoneNumber.length !== 11) {
+          throw new Error("Phone number must be exactly 11 digits.");
+        }
+      } else {
+        if (formData.accountNumber.length !== 14) {
+          throw new Error("Account number must be exactly 14 digits.");
+        }
       }
 
       let proofUrl = null;
-      if (formData.proofOfPurpose) {
-        const fileExt = formData.proofOfPurpose.name.split(".").pop();
-        const fileName = `${userData.id}_${Date.now()}.${fileExt}`;
-        const filePath = `proof-documents/${fileName}`;
+      if (proof) {
+        const fileExt = proof.name.split(".").pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `requests/${fileName}`;
+
         const { error: uploadError } = await supabase.storage
           .from("verification-documents")
-          .upload(filePath, formData.proofOfPurpose);
+          .upload(filePath, proof);
+
         if (uploadError) throw uploadError;
         proofUrl = filePath;
       }
 
-      let { error } = await supabase.from("cash_requests").insert([
+      const { error } = await supabase.from("cash_requests").insert([
         {
           user_id: userData.id,
           user_name: userData.name,
           user_email: userData.email,
-          amount: formData.amount,
-          category: formData.category === "Other" ? formData.otherCategory : formData.category,
-          description: formData.description.trim(),
+          amount: parseFloat(formData.amount),
+          category: formData.category,
+          description: formData.paymentMethod === "bank"
+            ? `${formData.description}\n\n[BANK DETAILS]\nMethod: bank\nBank: ${formData.bankName}\nAccount Name: ${formData.accountName}\nAccount Number: ${formData.accountNumber}`
+            : `${formData.description}\n\n[PAYMENT DETAILS]\nMethod: EasyPaisa\nPhone Number: ${formData.phoneNumber}`,
           proof_url: proofUrl,
-          payment_method: formData.paymentMethod,
-          account_name: formData.accountName,
-          account_number: formData.accountNumber,
-          bank_name: formData.bankName,
-          phone_number: formData.phoneNumber,
+          status: "pending",
         },
       ]);
 
-      if (error && (error.message.includes("column") || error.code === "PGRST116" || error.code === "42703")) {
-        let paymentInfo = "";
-        if (formData.paymentMethod === 'bank') {
-          paymentInfo = `\n[BANK DETAILS]\nMethod: Bank Transfer\nBank: ${formData.bankName}\nAccount Name: ${formData.accountName}\nAccount Number: ${formData.accountNumber}`;
-        } else {
-          paymentInfo = `\n[PAYMENT DETAILS]\nMethod: EasyPaisa\nPhone Number: ${formData.phoneNumber}`;
-        }
-        const fallbackDescription = `${formData.description.trim()}\n${paymentInfo}`;
-        const retry = await supabase.from("cash_requests").insert([
-          {
-            user_id: userData.id,
-            user_name: userData.name,
-            user_email: userData.email,
-            amount: formData.amount,
-            category: formData.category === "Other" ? formData.otherCategory : formData.category,
-            description: fallbackDescription,
-            proof_url: proofUrl,
-          },
-        ]);
-        error = retry.error;
-      }
-
       if (error) throw error;
 
-      setFeedback({ type: "success", message: "Cash request submitted successfully! Admin will review it soon." });
-      setTimeout(() => { navigate("/dashboard"); }, 2000);
+      setFeedback({ type: "success", message: "Request submitted successfully! Admin will verify your details." });
+      setTimeout(() => navigate("/dashboard"), 2000);
     } catch (error) {
-      setFeedback({ type: "error", message: "Error submitting request: " + error.message });
+      let errMsg = error.message;
+      if (errMsg.includes('Failed to fetch')) {
+        errMsg = 'Check your internet connection and try again.';
+      }
+      setFeedback({ type: "error", message: errMsg });
     } finally {
       setLoading(false);
     }
   };
 
+  const steps = [
+    { title: "Need", desc: "Define your requirements" },
+    { title: "Payout", desc: "Where to send funds" },
+  ];
+  const mainContentRef = useRef(null);
+
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [step, feedback]);
+
   return (
-    <div className="h-screen bg-white text-slate-900 flex flex-col font-poppins overflow-hidden">
+    <div className="h-screen bg-white text-slate-900 flex flex-col font-outfit">
       <AuthenticatedNavbar />
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 relative overflow-hidden bg-slate-50/50 pt-20">
+        {/* Global Background Blobs */}
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#124074]/8 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/8 rounded-full blur-[100px] pointer-events-none"></div>
+
         {/* Left Panel: Process Sidebar */}
-        <aside className="w-[480px] bg-slate-50 border-r border-slate-200 p-16 flex flex-col justify-center animate-fade-in shrink-0">
-          <div className="mb-14">
-            <h2 className="text-4xl font-black tracking-tighter text-slate-900 leading-none">Request <span className="text-slate-300">Process</span></h2>
+        <aside className="hidden md:flex w-72 bg-white/40 backdrop-blur-2xl border-r border-slate-100/50 pt-6 px-6 pb-8 flex flex-col shrink-0 relative z-20 shadow-[20px_0_40px_rgba(0,0,0,0.01)]">
+          <button
+            onClick={() => step === 1 ? navigate("/request-donation") : setStep(1)}
+            className="w-9 h-9 rounded-full border border-slate-100 flex items-center justify-center text-slate-400 mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+
+          <div className="mb-8">
+            <h2 className="text-3xl font-black tracking-tight text-slate-900">Process <span className="text-slate-300">Guide</span></h2>
+            <div className="h-1 w-8 bg-[#124074] rounded-full mt-2"></div>
           </div>
 
-          <div className="space-y-12">
-            {processSteps.map((s, index) => (
-              <div key={index} className="flex gap-8 group">
-                <div className="relative shrink-0">
-                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black transition-all duration-500 shadow-sm text-xl border ${(step === 1 && index < 2) || (step === 2 && index >= 2)
-                      ? "bg-[#124074] text-white border-[#124074]"
-                      : "bg-white text-slate-400 border-slate-200 group-hover:bg-[#124074] group-hover:text-white group-hover:border-[#124074]"
-                    }`}>
-                    {index + 1}
+          <div className="relative flex-1 flex flex-col justify-center">
+            {/* Timeline Line */}
+            <div className="absolute left-5 top-0 bottom-0 w-px bg-slate-100"></div>
+
+            <div className="space-y-4 relative z-10">
+              {[
+                { title: "Item Detail", desc: "Amount, Category, Reason" },
+                { title: "Verification", desc: "Upload supporting evidence" },
+                { title: "Payout", desc: "Where to send funds" },
+                { title: "Status", desc: "Get notified of progress" }
+              ].map((s, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[13px] font-black border-2 bg-white text-slate-400 border-slate-100">
+                    0{i + 1}
                   </div>
-                  {index < processSteps.length - 1 && (
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[1px] h-12 bg-gradient-to-b from-slate-200 to-transparent"></div>
-                  )}
+                  <div className="pt-1">
+                    <h4 className="text-[13px] font-black uppercase tracking-[0.2em] text-slate-900">
+                      {s.title}
+                    </h4>
+                    <p className="text-sm text-slate-400 font-medium leading-relaxed mt-1.5">
+                      {s.desc}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className={`text-lg font-black uppercase tracking-widest transition-colors ${(step === 1 && index < 2) || (step === 2 && index >= 2)
-                      ? "text-[#124074]"
-                      : "text-slate-500 group-hover:text-[#124074]"
-                    }`}>{s.title}</h4>
-                  <p className="text-base text-slate-400 font-medium leading-relaxed mt-3 group-hover:text-slate-600 transition-colors max-w-[280px]">
-                    {s.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+
         </aside>
 
         {/* Right Panel: Form Area */}
-        <main className="flex-1 relative flex flex-col pt-4 lg:pt-6 pb-8 lg:pb-12 px-8 lg:px-12 overflow-hidden bg-slate-50/30">
-          <div className="max-w-2xl w-full mx-auto animate-slide-up">
-            <button
-              onClick={() => step === 1 ? navigate("/request-donation") : setStep(1)}
-              className="flex items-center gap-2 text-slate-500 hover:text-[#124074] font-bold uppercase tracking-widest text-xs mt-4 mb-6 transition-colors group"
-            >
-              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-              <span>Back</span>
-            </button>
+        <main
+          ref={mainContentRef}
+          className="flex-1 relative flex flex-col pt-6 pb-8 px-8 lg:px-16 overflow-y-auto overflow-x-hidden no-scrollbar bg-transparent"
+        >
 
-            <h1 className="text-4xl md:text-5xl font-medium mb-6 tracking-tighter leading-[1.1] text-[#124074]">
-              Cash <br/>
-              <span className="text-[#124074] font-black">Request</span>
-            </h1>
+          <div className="max-w-3xl w-full mx-auto relative z-10">
+            <header className="mb-6 animate-fade-in">
 
-            {feedback && (
-              <div className={`mb-6 p-4 rounded-[1.5rem] border flex items-start gap-3 animate-fade-in ${
-                feedback.type === "success" ? "bg-green-50 border-green-100 text-green-800" :
-                feedback.type === "warning" ? "bg-yellow-50 border-yellow-100 text-yellow-800" :
-                "bg-red-50 border-red-100 text-red-800"
-              }`}>
-                <AlertCircle className="w-5 h-5 shrink-0 mt-1" />
-                <span className="font-bold text-base">{feedback.message}</span>
-              </div>
-            )}
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight text-[#124074]">
+                Request <span className="font-black text-[#124074]">Cash</span>
+              </h1>
+              <p className="text-xs text-slate-500 mt-3 font-medium max-w-md leading-relaxed">
+                Provide clear details to help our donors understand your situation.
+              </p>
+            </header>
 
-            <form onSubmit={step === 1 ? handleNextStep : handleSubmit} className="space-y-5 pb-5">
-              {step === 1 ? (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Amount (PKR)</label>
-                      <div className="relative group">
-                        <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-[#124074] transition-colors" />
-                        <input
-                          type="number"
-                          name="amount"
-                          placeholder="Amount"
-                          value={formData.amount}
-                          onChange={handleChange}
-                          required
-                          className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-4 pl-12 pr-6 text-lg font-light focus:border-[#124074] focus:ring-4 focus:ring-[#124074]/5 transition-all outline-none placeholder:text-slate-200"
-                          min="1"
-                        />
-                      </div>
-                    </div>
+            <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 md:p-10 shadow-[0_40px_100px_rgba(0,0,0,0.03)] border border-white relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#124074]/20 to-transparent"></div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Category</label>
-                      <CustomDropdown
-                        options={categories.map(cat => ({ value: cat, label: cat }))}
-                        value={formData.category}
-                        onChange={(val) => setFormData({ ...formData, category: val })}
-                        placeholder="Select"
-                        className="!rounded-[1.5rem] !py-4 !px-6 !text-lg !font-light"
-                      />
-                    </div>
+              {feedback && (
+                <div className={`mb-6 p-5 rounded-2xl border flex items-start gap-4 animate-slide-down ${feedback.type === "success" ? "bg-emerald-50/50 border-emerald-100 text-emerald-800" :
+                  "bg-rose-50/50 border-rose-100 text-rose-800"
+                  }`}>
+                  <div className={`p-2 rounded-lg ${feedback.type === "success" ? "bg-emerald-500/10" : "bg-rose-500/10"
+                    }`}>
+                    <AlertCircle className="w-5 h-5 shrink-0" />
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Reason / Description</label>
-                    <textarea
-                      name="description"
-                      placeholder="Why do you need this help? Be brief but specific."
-                      value={formData.description}
-                      onChange={handleChange}
-                      rows="2"
-                      required
-                      className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-4 px-6 text-lg font-light focus:border-[#124074] focus:ring-4 focus:ring-[#124074]/5 transition-all outline-none placeholder:text-slate-200 resize-none"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Evidence / Proof</label>
-                    <input
-                      type="file"
-                      id="proofOfPurpose"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={handleFileChange}
-                      required
-                      className="hidden"
-                    />
-                    <label htmlFor="proofOfPurpose" className="block cursor-pointer group">
-                      <div className="border-2 border-dashed border-slate-200 rounded-[1.5rem] p-4 text-center group-hover:border-[#124074] group-hover:bg-slate-50 transition-all duration-500">
-                        {fileName ? (
-                          <div className="flex items-center gap-4 animate-fade-in">
-                            <FileText className="w-6 h-6 text-[#124074]" strokeWidth={1} />
-                            <p className="text-sm font-bold text-slate-900 truncate">{fileName}</p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-[#124074] ml-auto">Change</p>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-3">
-                            <Upload className="w-5 h-5 text-slate-300 group-hover:text-[#124074]" strokeWidth={1} />
-                            <p className="text-sm font-bold text-slate-400 group-hover:text-slate-600">Click to upload Proof</p>
-                          </div>
-                        )}
-                      </div>
-                    </label>
-                  </div>
-
-                  <div className="flex justify-center pt-0">
-                    <button
-                      type="submit"
-                      className="w-max bg-[#124074] text-white rounded-[1.5rem] py-3.5 px-10 text-base font-black uppercase tracking-widest shadow-2xl shadow-blue-900/20 hover:scale-[1.02] hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center gap-3"
-                    >
-                      <span>Next Step</span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex gap-3 p-1.5 bg-slate-100 rounded-[1.5rem] mb-6">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, paymentMethod: "bank" })}
-                      className={`flex-1 py-3 rounded-[1rem] text-sm font-black uppercase tracking-widest transition-all ${formData.paymentMethod === "bank" ? "bg-white text-[#124074] shadow-md" : "text-slate-400"}`}
-                    >
-                      Bank
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, paymentMethod: "easypaisa" })}
-                      className={`flex-1 py-3 rounded-[1rem] text-sm font-black uppercase tracking-widest transition-all ${formData.paymentMethod === "easypaisa" ? "bg-white text-[#124074] shadow-md" : "text-slate-400"}`}
-                    >
-                      EasyPaisa
-                    </button>
-                  </div>
-
-                  {formData.paymentMethod === "bank" ? (
-                    <div className="space-y-4 animate-fade-in">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Bank Name</label>
-                        <input
-                          type="text"
-                          name="bankName"
-                          placeholder="e.g., Meezan Bank"
-                          value={formData.bankName}
-                          onChange={handleChange}
-                          required
-                          className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-4 px-6 text-lg font-light focus:border-[#124074] transition-all outline-none"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Account Title</label>
-                          <input
-                            type="text"
-                            name="accountName"
-                            placeholder="Title"
-                            value={formData.accountName}
-                            onChange={handleChange}
-                            required
-                            className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-4 px-6 text-lg font-light focus:border-[#124074] transition-all outline-none"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Account No.</label>
-                          <input
-                            type="text"
-                            name="accountNumber"
-                            placeholder="14 digits"
-                            value={formData.accountNumber}
-                            onChange={handleChange}
-                            required
-                            className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-4 px-6 text-lg font-light focus:border-[#124074] transition-all outline-none"
-                            maxLength={14}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 animate-fade-in">
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Phone Number</label>
-                      <input
-                        type="text"
-                        name="phoneNumber"
-                        placeholder="03XXXXXXXXX"
-                        value={formData.phoneNumber}
-                        onChange={handleChange}
-                        required
-                        className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-4 px-6 text-lg font-light focus:border-[#124074] transition-all outline-none"
-                        maxLength={11}
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex flex-col items-center gap-4 pt-4">
-                    <button
-                      type="submit"
-                      className={`w-max bg-[#124074] text-white rounded-[1.5rem] py-3.5 px-10 text-base font-black uppercase tracking-widest shadow-2xl shadow-blue-900/20 hover:scale-[1.02] hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center gap-3 ${loading ? 'opacity-70' : ''}`}
-                      disabled={loading}
-                    >
-                      {loading ? <span className="animate-pulse text-base">Submitting...</span> : (
-                        <span>Submit Request</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStep(1)}
-                      className="text-slate-400 hover:text-slate-600 text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
-                    >
-                      Back to details
-                    </button>
-                  </div>
-                </>
+                  <span className="font-bold text-sm pt-2">{feedback.message}</span>
+                </div>
               )}
-            </form>
+
+              <form onSubmit={step === 1 ? handleNextStep : handleSubmit} className="space-y-6">
+                {step === 1 ? (
+                  <>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">Required Amount (PKR)</label>
+                        <div className="relative group">
+                          <input
+                            type="number"
+                            name="amount"
+                            placeholder="Amount in PKR"
+                            value={formData.amount}
+                            onChange={handleChange}
+                            required
+                            className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-4 px-6 text-sm font-semibold text-slate-600 focus:bg-white focus:border-[#124074] focus:ring-8 focus:ring-[#124074]/5 transition-all outline-none placeholder:text-slate-300 placeholder:font-light"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">Category</label>
+                        <CustomDropdown
+                          options={categories.map(cat => ({ value: cat, label: cat }))}
+                          value={formData.category}
+                          onChange={(val) => setFormData(prev => ({ ...prev, category: val }))}
+                          placeholder="Select Category"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">Reason for Assistance</label>
+                      <textarea
+                        name="description"
+                        placeholder="Please explain why you need this assistance..."
+                        value={formData.description}
+                        onChange={handleChange}
+                        rows="4"
+                        required
+                        className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-4 px-6 text-sm font-semibold text-slate-600 focus:bg-white focus:border-[#124074] focus:ring-8 focus:ring-[#124074]/5 transition-all outline-none placeholder:text-slate-300 placeholder:font-light resize-none"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">Supporting Document (Medical bill, Fee slip, etc.)</label>
+                      <input
+                        type="file"
+                        id="proof"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                      <label htmlFor="proof" className="block cursor-pointer group">
+                        <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-2xl p-4 hover:bg-white hover:border-[#124074] transition-all duration-300">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                              {proofName ? <FileText className="w-5 h-5 text-[#124074]" /> : <Upload className="w-5 h-5 text-slate-300" />}
+                            </div>
+                            <div>
+                              <p className="text-[13px] font-bold text-slate-700">{proofName || "Upload Document"}</p>
+                            </div>
+                          </div>
+                          {proofName && <CheckCircle className="w-5 h-5 text-emerald-500" />}
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                      <button
+                        type="submit"
+                        className="w-full md:w-max bg-[#124074] text-white rounded-2xl py-4 px-12 text-[12px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-900/20 hover:scale-[1.02] hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center gap-4"
+                      >
+                        Next Step
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-8 animate-fade-in">
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">Payout Method</label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, paymentMethod: "bank" }))}
+                            className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${formData.paymentMethod === "bank"
+                              ? 'bg-[#124074]/5 border-[#124074] text-[#124074]'
+                              : 'bg-slate-50/50 border-slate-100 text-slate-400 hover:bg-white hover:border-slate-200'
+                              }`}
+                          >
+                            <CreditCard className="w-6 h-6" />
+                            <span className="text-[12px] font-black uppercase tracking-widest">Bank Account</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, paymentMethod: "mobile" }))}
+                            className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${formData.paymentMethod === "mobile"
+                              ? 'bg-emerald-500/5 border-emerald-500 text-emerald-600'
+                              : 'bg-slate-50/50 border-slate-100 text-slate-400 hover:bg-white hover:border-slate-200'
+                              }`}
+                          >
+                            <Smartphone className="w-6 h-6" />
+                            <span className="text-[12px] font-black uppercase tracking-widest">Mobile Wallet</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {formData.paymentMethod === "bank" ? (
+                        <div className="grid md:grid-cols-2 gap-6 animate-slide-up">
+                          <div className="space-y-3">
+                            <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">Bank Name</label>
+                            <input
+                              type="text"
+                              name="bankName"
+                              placeholder="e.g. Meezan Bank"
+                              value={formData.bankName}
+                              onChange={handleChange}
+                              className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-4 px-6 text-sm font-semibold text-slate-600 outline-none focus:bg-white focus:border-[#124074] transition-all placeholder:text-slate-300 placeholder:font-light"
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">Account Title</label>
+                            <input
+                              type="text"
+                              name="accountName"
+                              placeholder="Full Name"
+                              value={formData.accountName}
+                              onChange={handleChange}
+                              className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-4 px-6 text-sm font-semibold text-slate-600 outline-none focus:bg-white focus:border-[#124074] transition-all placeholder:text-slate-300 placeholder:font-light"
+                            />
+                          </div>
+                          <div className="space-y-3 md:col-span-2">
+                            <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">Account Number / IBAN</label>
+                            <input
+                              type="text"
+                              name="accountNumber"
+                              placeholder="Your Account Number"
+                              value={formData.accountNumber}
+                              onChange={handleChange}
+                              className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-4 px-6 text-sm font-semibold text-slate-600 outline-none focus:bg-white focus:border-[#124074] transition-all placeholder:text-slate-300 placeholder:font-light"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 animate-slide-up">
+                          <label className="text-[12px] font-bold font-jakarta uppercase tracking-wider text-[#124074] ml-2">EasyPaisa / JazzCash Number</label>
+                          <input
+                            type="tel"
+                            name="phoneNumber"
+                            placeholder="03xx xxxxxxx"
+                            value={formData.phoneNumber}
+                            onChange={handleChange}
+                            className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-4 px-6 text-sm font-semibold text-slate-600 outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-300 placeholder:font-light"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col md:flex-row justify-end gap-4 pt-6">
+                      <button
+                        type="button"
+                        onClick={() => setStep(1)}
+                        disabled={loading}
+                        className={`px-8 py-4 text-[12px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        className={`w-full md:w-max bg-[#124074] text-white rounded-2xl py-4 px-12 text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            Submit Request
+                            <CheckCircle className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </form>
+            </div>
           </div>
         </main>
       </div>

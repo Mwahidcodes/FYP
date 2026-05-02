@@ -26,32 +26,6 @@ const Footer = () => {
 
     return (
         <footer className="bg-gray-900 text-gray-300">
-            {/* Newsletter Section */}
-            <div className="bg-gradient-to-r from-primary-600 to-secondary-600">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="text-center md:text-left">
-                            <h3 className="text-2xl font-bold text-white font-poppins">
-                                Stay Connected with Share4Good
-                            </h3>
-                            <p className="text-white/80 mt-1">
-                                Get updates on how your donations are making a difference
-                            </p>
-                        </div>
-                        <div className="flex w-full md:w-auto">
-                            <input
-                                type="email"
-                                placeholder="Enter your email"
-                                className="flex-1 md:w-80 px-5 py-3 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-white/50 text-gray-800"
-                            />
-                            <button className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-r-xl font-semibold transition-colors duration-200 flex items-center gap-2">
-                                Subscribe
-                                <Send className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* Main Footer */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -61,7 +35,7 @@ const Footer = () => {
                         <Link to="/" className="flex items-center space-x-3 mb-6">
                             <img src="/logo.png" alt="Share4Good Logo" className="w-12 h-12 object-contain" />
                             <div className="flex flex-col">
-                                <span className="text-xl font-bold font-poppins text-white leading-none">
+                                <span className="text-xl font-bold font-outfit text-white leading-none">
                                     Share<span className="text-primary-400">4</span>Good
                                 </span>
                             </div>
@@ -74,7 +48,7 @@ const Footer = () => {
 
                     {/* Quick Links */}
                     <div>
-                        <h4 className="text-lg font-semibold text-white mb-6 font-poppins">
+                        <h4 className="text-lg font-semibold text-white mb-6 font-outfit">
                             Quick Links
                         </h4>
                         <ul className="space-y-3">
@@ -94,7 +68,7 @@ const Footer = () => {
 
                     {/* Support */}
                     <div>
-                        <h4 className="text-lg font-semibold text-white mb-6 font-poppins">
+                        <h4 className="text-lg font-semibold text-white mb-6 font-outfit">
                             Support
                         </h4>
                         <ul className="space-y-3">
@@ -114,7 +88,7 @@ const Footer = () => {
 
                     {/* Contact Info */}
                     <div>
-                        <h4 className="text-lg font-semibold text-white mb-6 font-poppins">
+                        <h4 className="text-lg font-semibold text-white mb-6 font-outfit">
                             Contact Us
                         </h4>
                         <ul className="space-y-4">
@@ -147,7 +121,7 @@ const Footer = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <p className="text-gray-500 text-sm">
-                            © 2026 Share4Good. All rights reserved. Made with ❤️ for humanity.
+                            © 2026 Share4Good. All rights reserved.
                         </p>
                         <div className="flex items-center gap-6 text-sm">
                             <Link to="/privacy" className="text-gray-500 hover:text-primary-400 transition-colors">
@@ -155,9 +129,6 @@ const Footer = () => {
                             </Link>
                             <Link to="/terms" className="text-gray-500 hover:text-primary-400 transition-colors">
                                 Terms
-                            </Link>
-                            <Link to="/cookies" className="text-gray-500 hover:text-primary-400 transition-colors">
-                                Cookies
                             </Link>
                         </div>
                     </div>

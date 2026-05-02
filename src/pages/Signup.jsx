@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, HeartHandshake, User, Phone, UserPlus, ArrowLeft } from 'lucide-react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, HeartHandshake, User, Phone, UserPlus, ArrowLeft, X, ShieldCheck, Sparkles } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import * as emailjs from '@emailjs/browser';
+
+// Initialize EmailJS once at startup for instant delivery
+if (process.env.REACT_APP_EMAILJS_PUBLIC_KEY) {
+  emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+}
 
 function generateSignupOtp(length = 6) {
   const digits = '0123456789';
@@ -14,20 +20,15 @@ function generateSignupOtp(length = 6) {
 
 async function sendSignupOtpEmail(email, name, otp) {
   try {
-    const emailjs = await import('@emailjs/browser').catch(() => null);
-    if (!emailjs || !process.env.REACT_APP_EMAILJS_SERVICE_ID) {
-      console.log('EmailJS not configured, skipping signup OTP email');
-      return false;
-    }
-
-    if (process.env.REACT_APP_EMAILJS_PUBLIC_KEY) {
-      emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+    if (!process.env.REACT_APP_EMAILJS_SERVICE_ID || !process.env.REACT_APP_EMAILJS_PUBLIC_KEY || !process.env.REACT_APP_EMAILJS_TEMPLATE_ID) {
+      return { success: false, error: 'Email configuration is missing in .env file' };
     }
 
     const subject = 'Verify Your Email - Share For Good';
-    const message = `Thank you for signing up for Share For Good.\n\nYour email verification OTP: ${otp}\n\nThis code confirms that this email address belongs to you.\n\nThank you.`;
+    const message = `Hi ${name || 'User'},\n\nThank you for signing up for Share For Good.\n\nYour email verification OTP: ${otp}\n\nThis code confirms that this email address belongs to you.\n\nThankyou for visiting share for good!`;
 
-    await emailjs.send(
+    // Explicitly pass the public key in the send call for maximum reliability
+    const result = await emailjs.send(
       process.env.REACT_APP_EMAILJS_SERVICE_ID,
       process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
       {
@@ -35,19 +36,26 @@ async function sendSignupOtpEmail(email, name, otp) {
         to_name: name || 'User',
         subject,
         message,
-      }
+      },
+      process.env.REACT_APP_EMAILJS_PUBLIC_KEY
     );
 
-    return true;
+    console.log('Signup OTP email sent successfully:', result.status, result.text);
+    return { success: true };
   } catch (error) {
-    console.log('Signup OTP email skipped or failed:', error.message);
-    return false;
+    console.error('Signup OTP email failed:', error);
+    return {
+      success: false,
+      error: error?.text || error?.message || 'Unknown error'
+    };
   }
 }
 
-function Signup() {
+function Signup({ isOpen, onClose }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -60,12 +68,40 @@ function Signup() {
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
+  // Reset form when modal closes
   useEffect(() => {
-    const currentUser = localStorage.getItem('currentUser');
-    if (currentUser) {
-      navigate('/dashboard', { replace: true });
+    if (!isOpen) {
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        phone: '',
+        terms: false,
+      });
+      setError('');
+      setFeedback(null);
+      setLoading(false);
     }
-  }, [navigate]);
+  }, [isOpen]);
+
+  // Disable background scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -155,14 +191,16 @@ function Signup() {
 
       if (insertError) throw insertError;
 
-      await sendSignupOtpEmail(formData.email, formData.name, otp);
+      // Send the email and check if it succeeded
+      const emailResult = await sendSignupOtpEmail(formData.email.toLowerCase().trim(), formData.name, otp);
 
-      setFeedback({
-        type: 'success',
-        message: 'We have sent an OTP to your email (if email is configured). Please enter it within 10 minutes to complete your registration.',
-      });
+      if (!emailResult.success) {
+        setError(`Failed to send email: ${emailResult.error}. Please check your internet or EmailJS quota.`);
+        setLoading(false);
+        return;
+      }
 
-      navigate('/verify-email', { state: { email: formData.email } });
+      setSearchParams({ verify: 'true', email: formData.email.toLowerCase().trim() });
     } catch (error) {
       setError(error.message);
     } finally {
@@ -171,87 +209,90 @@ function Signup() {
   };
 
   return (
-    <div className="h-screen w-full flex overflow-hidden animate-fade-in bg-white">
-      {/* Left Side - Seamless Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#124074] relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#124074] to-[#0a2544]"></div>
-        <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-500 opacity-10 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] bg-emerald-500 opacity-10 rounded-full blur-[120px]"></div>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/15 backdrop-blur-[2px] animate-in fade-in duration-500">
+      {/* Clickable Backdrop Area */}
+      <div
+        className="absolute inset-0 cursor-pointer"
+        onClick={onClose}
+      ></div>
 
-        <div className="relative z-10 flex flex-col justify-center items-center text-center p-12 w-full h-full">
-          <div className="mb-10">
-            <div className="flex flex-col items-center justify-center gap-6 mb-4">
-              <img src="/logo.png" alt="Share4Good Logo" className="w-32 h-32 object-contain" />
-              <h1 className="text-5xl font-bold text-white font-roboto tracking-tight">Share<span className="text-blue-400">4</span>Good</h1>
-            </div>
-          </div>
-          <p className="text-white/70 text-xl max-w-md font-medium leading-relaxed">Join the most trusted community for collective generosity in Pakistan.</p>
+      {/* Modal Container */}
+      <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-[0_25px_80px_rgba(0,0,0,0.2)] relative z-10 border border-gray-100 flex flex-col max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-500">
+
+        {/* Glow Effects - Very subtle */}
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#1db5f4]/5 rounded-full blur-[80px] pointer-events-none"></div>
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-[#124074]/5 rounded-full blur-[80px] pointer-events-none"></div>
+
+        {/* Decorative Top Line */}
+        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#124074] via-[#1db5f4] to-[#124074]"></div>
+
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-6 right-6 w-10 h-10 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all z-20 group shadow-sm"
+        >
+          <X className="w-5 h-5 transition-transform group-hover:rotate-90" />
+        </button>
+
+        {/* Header - Non-scrollable */}
+        <div className="p-10 pb-4 text-center relative z-10">
+          <h2 className="text-3xl font-semibold text-[#124074] font-outfit tracking-tight leading-tight">Join Share4Good</h2>
+          <p className="text-gray-500 mt-2 text-sm font-medium flex items-center justify-center gap-1.5">
+            Safe, Secure & Transparent Giving
+          </p>
         </div>
 
-        {/* Removed Established 2024 */}
-      </div>
-
-      {/* Right Side - Signup Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white relative">
-        <div className="absolute top-8 left-8">
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all shadow-sm active:scale-95"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
-          </button>
-        </div>
-
-        <div className="w-full max-w-md">
-          <div className="text-left mb-10">
-            <h2 className="text-4xl font-bold text-gray-900 font-roboto tracking-tight">Create Account</h2>
-            <p className="text-gray-600 mt-2 text-lg font-medium">Join our mission to spread kindness</p>
-          </div>
-
+        {/* Form Body - Scrollable */}
+        <div className="overflow-y-auto px-8 md:px-12 pb-10 custom-scrollbar relative z-10">
           {error && (
-            <div className="mb-6 p-4 bg-red-50/80 border-l-4 border-red-500 text-red-600 rounded-lg text-sm font-bold flex items-center gap-3">
-              <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-sm font-bold flex items-center gap-3 animate-in slide-in-from-top-2 duration-300">
+              <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse flex-shrink-0"></div>
               {error}
             </div>
           )}
 
           {feedback && (
-            <div className={`mb-6 p-4 border-l-4 rounded-lg text-sm font-bold flex items-center gap-3 ${feedback.type === 'success'
-                ? 'bg-green-50/80 border-green-500 text-green-600'
-                : 'bg-red-50/80 border-red-500 text-red-600'
+            <div className={`mb-6 p-4 border rounded-2xl text-sm font-bold flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${feedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
+              : 'bg-red-50 border-red-100 text-red-600'
               }`}>
-              <span className="flex-shrink-0 w-2 h-2 bg-current rounded-full"></span>
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${feedback.type === 'success' ? 'bg-emerald-500' : 'bg-red-600 animate-pulse'}`}></div>
               {feedback.message}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
-            <div>
-              <label className="text-lg font-bold text-black tracking-wide ml-1">Full Name</label>
-              <div className="relative mt-2">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-bold text-gray-700 tracking-wide ml-1 flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-[#1db5f4]" />
+                Full Name
+              </label>
+              <div className="relative group">
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full h-14 px-6 bg-gray-50 border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#124074] focus:border-transparent transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
+                  className="w-full h-12 px-5 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#1db5f4]/10 focus:border-[#1db5f4] transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
                   placeholder="Ahmed Khan"
                   required
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-lg font-bold text-black tracking-wide ml-1">Email</label>
-                <div className="relative mt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-bold text-gray-700 tracking-wide ml-1 flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 text-[#1db5f4]" />
+                  Email
+                </label>
+                <div className="relative">
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full h-14 px-6 bg-gray-50 border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#124074] focus:border-transparent transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
+                    className="w-full h-12 px-5 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#1db5f4]/10 focus:border-[#1db5f4] transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
                     placeholder="name@email.com"
                     autoComplete="off"
                     required
@@ -259,15 +300,18 @@ function Signup() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-lg font-bold text-black tracking-wide ml-1">Phone</label>
-                <div className="relative mt-2">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-bold text-gray-700 tracking-wide ml-1 flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 text-[#1db5f4]" />
+                  Phone
+                </label>
+                <div className="relative">
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full h-14 px-6 bg-gray-50 border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#124074] focus:border-transparent transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
+                    className="w-full h-12 px-5 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#1db5f4]/10 focus:border-[#1db5f4] transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
                     placeholder="03123456789"
                     maxLength={11}
                     required
@@ -276,16 +320,19 @@ function Signup() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-lg font-bold text-black tracking-wide ml-1">Password</label>
-                <div className="relative mt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-bold text-gray-700 tracking-wide ml-1 flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5 text-[#1db5f4]" />
+                  Password
+                </label>
+                <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full h-14 px-6 pr-12 bg-gray-50 border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#124074] focus:border-transparent transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
+                    className="w-full h-12 px-5 pr-12 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#1db5f4]/10 focus:border-[#1db5f4] transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
                     placeholder="••••••••"
                     autoComplete="new-password"
                     required
@@ -293,26 +340,36 @@ function Signup() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1db5f4] transition-colors p-1"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
 
-              <div>
-                <label className="text-lg font-bold text-black tracking-wide ml-1">Confirm Password</label>
-                <div className="relative mt-2">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-bold text-gray-700 tracking-wide ml-1 flex items-center gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#1db5f4]" />
+                  Confirm Password
+                </label>
+                <div className="relative">
                   <input
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="w-full h-14 px-6 bg-gray-50 border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#124074] focus:border-transparent transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
+                    className="w-full h-12 px-5 pr-12 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#1db5f4]/10 focus:border-[#1db5f4] transition-all outline-none text-gray-900 font-medium placeholder:font-light placeholder:text-gray-400"
                     placeholder="••••••••"
                     autoComplete="new-password"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1db5f4] transition-colors p-1"
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
             </div>
@@ -324,36 +381,59 @@ function Signup() {
                   name="terms"
                   checked={formData.terms}
                   onChange={handleChange}
-                  className="w-5 h-5 rounded border-gray-300 text-[#124074] focus:ring-[#124074]"
+                  className="w-5 h-5 rounded-lg border-gray-200 text-[#124074] focus:ring-[#1db5f4]/20 transition-all cursor-pointer"
                   required
                 />
-                <span className="text-sm text-gray-500 font-semibold group-hover:text-gray-700 transition-colors">
-                  Agree to <Link to="/terms" className="text-[#124074] hover:underline">Terms</Link> & <Link to="/privacy" className="text-[#124074] hover:underline">Privacy</Link>
+                <span className="text-xs text-gray-500 font-semibold group-hover:text-gray-700 transition-colors">
+                  I agree to the <Link to="/terms" className="text-[#124074] hover:underline decoration-2" onClick={onClose}>Terms</Link> & <Link to="/privacy" className="text-[#124074] hover:underline decoration-2" onClick={onClose}>Privacy Policy</Link>
                 </span>
               </label>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-40 h-14 bg-[#124074] text-white rounded-2xl flex items-center justify-center active:scale-[0.98] transition-all shadow-xl shadow-blue-900/20 font-semibold text-lg ${loading ? 'opacity-70' : 'hover:bg-[#103866]'}`}
-            >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Signup...</span>
-                </div>
-              ) : (
-                <span>Signup</span>
-              )}
-            </button>
+            <div className="flex justify-center pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full max-w-[240px] h-11 bg-[#124074] text-white rounded-xl flex items-center justify-center active:scale-[0.98] transition-all shadow-[0_8px_15px_rgba(18,64,116,0.15)] font-medium text-sm relative overflow-hidden group ${loading ? 'opacity-70' : 'hover:bg-[#0e335d] hover:shadow-[0_12px_20px_rgba(18,64,116,0.25)] hover:-translate-y-0.5'}`}
+              >
+                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                {loading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span className="tracking-wide">Creating...</span>
+                  </div>
+                ) : (
+                  <span className="tracking-wider">Create My Account</span>
+                )}
+              </button>
+            </div>
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-gray-500 font-semibold text-lg">Already have an account? <Link to="/login" className="text-[#124074] hover:underline font-black">Sign In</Link></p>
+          <div className="mt-8 text-center bg-gray-50 p-5 rounded-[1.5rem] border border-gray-100">
+            <p className="text-gray-500 font-medium text-sm">
+              Already a member? <button onClick={() => setSearchParams({ login: 'true' })} className="text-[#124074] hover:text-[#1db5f4] font-semibold ml-1 transition-colors">Sign In Now</button>
+            </p>
           </div>
         </div>
       </div>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f8fafc;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
+        }
+      `}} />
     </div>
   );
 }

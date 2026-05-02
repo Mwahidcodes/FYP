@@ -272,7 +272,7 @@
   padding: 1rem 1.25rem;
   color: #ffffff;
   font-size: 1rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   resize: vertical;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -347,7 +347,7 @@
   justify-content: center;
   border: none;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
   position: relative;
   overflow: hidden;
   isolation: isolate;

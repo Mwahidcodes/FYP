@@ -97,7 +97,7 @@ function ResetPassword() {
         </div>
 
         <div className="text-center mb-10 mt-4">
-          <h2 className="text-3xl font-bold text-gray-900 font-roboto tracking-tight">Set New Password</h2>
+          <h2 className="text-3xl font-bold text-gray-900 font-outfit tracking-tight">Set New Password</h2>
           <p className="text-gray-600 mt-2 font-medium">Verify your OTP and choose a strong password.</p>
         </div>
 

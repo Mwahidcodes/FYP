@@ -230,7 +230,7 @@ function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-20">
       <AuthenticatedNavbar />
       
       {/* Header */}
@@ -246,7 +246,7 @@ function Profile() {
             </button>
             
             <div className="text-center max-w-3xl mx-auto flex-1">
-              <h1 className="text-3xl font-bold font-roboto text-gray-900 mb-2">
+              <h1 className="text-3xl font-bold font-outfit text-gray-900 mb-2">
                 {activeTab === 'profile' ? 'My Profile' : 'Account Settings'}
               </h1>
               <p className="text-sm text-gray-600">
@@ -297,7 +297,7 @@ function Profile() {
           {activeTab === "profile" && (
             <div className="card">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold font-roboto text-gray-900">Personal Information</h2>
+                <h2 className="text-2xl font-bold font-outfit text-gray-900">Personal Information</h2>
                 {!isEditingProfile && (
                   <button
                     onClick={() => setIsEditingProfile(true)}
@@ -375,7 +375,7 @@ function Profile() {
               ) : (
                 <form onSubmit={handleProfileUpdate} className="space-y-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2 font-roboto">
+                    <label className="block text-sm font-semibold text-gray-900 mb-2 font-outfit">
                       Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -391,7 +391,7 @@ function Profile() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2 font-roboto">
+                    <label className="block text-sm font-semibold text-gray-900 mb-2 font-outfit">
                       Email <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -447,7 +447,7 @@ function Profile() {
               {/* Password Change */}
               <div className="card">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold font-roboto text-gray-900 flex items-center gap-2">
+                  <h2 className="text-2xl font-bold font-outfit text-gray-900 flex items-center gap-2">
                     <Lock className="w-6 h-6 text-primary-600" />
                     Change Password
                   </h2>
@@ -482,7 +482,7 @@ function Profile() {
                     )}
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2 font-roboto">
+                      <label className="block text-sm font-semibold text-gray-900 mb-2 font-outfit">
                         Current Password <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
@@ -510,7 +510,7 @@ function Profile() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2 font-roboto">
+                      <label className="block text-sm font-semibold text-gray-900 mb-2 font-outfit">
                         New Password <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
@@ -540,7 +540,7 @@ function Profile() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2 font-roboto">
+                      <label className="block text-sm font-semibold text-gray-900 mb-2 font-outfit">
                         Confirm New Password <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
@@ -610,7 +610,7 @@ function Profile() {
 
               {/* Account Actions */}
               <div className="card">
-                <h2 className="text-2xl font-bold font-roboto text-gray-900 mb-6 flex items-center gap-2">
+                <h2 className="text-2xl font-bold font-outfit text-gray-900 mb-6 flex items-center gap-2">
                   <LogOut className="w-6 h-6 text-red-600" />
                   Account Actions
                 </h2>

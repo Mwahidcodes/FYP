@@ -4,11 +4,11 @@ import Footer from './Footer';
 
 const Layout = () => {
     const location = useLocation();
-    
+
     // Pages where navbar and footer should be hidden
     const hideNavbarFooter = [
         '/dashboard',
-        '/verify-documents',
+
         '/request-donation',
         '/cash-request',
         '/product-request',
@@ -31,9 +31,9 @@ const Layout = () => {
     const shouldHide = hideNavbarFooter.includes(location.pathname);
 
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col overflow-x-hidden">
             {!shouldHide && <Navbar />}
-            <main className="flex-grow">
+            <main className={`flex-grow ${!shouldHide ? 'pt-20' : ''}`}>
                 <Outlet />
             </main>
             {!shouldHide && <Footer />}
