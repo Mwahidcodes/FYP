@@ -164,17 +164,16 @@ function CashDonationForm() {
 
       setFeedback({ type: "success", message: "Redirecting to Stripe secure checkout..." });
 
-      const API_URL = "http://127.0.0.1:5001";
-      const response = await fetch(`${API_URL}/api/create-stripe-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: formData.amount,
-          donationId: data.id,
-        }),
-      });
+      const response = await fetch("/api/create-stripe-session", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    amount: formData.amount,
+    donationId: data.id,
+  }),
+});
 
       const result = await response.json();
 
